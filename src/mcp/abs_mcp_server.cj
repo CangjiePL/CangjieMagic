@@ -243,6 +243,7 @@ public abstract class AbsMCPServer {
     }
 
     private func compileSoFromCode(code: String, output_path: String): String {
+        println("--------------------------------compileSoFromCode-------------------------------")
         try {
             // 创建临时构建目录
             let buildDir = Path("./build_temp")
@@ -426,6 +427,7 @@ public abstract class AbsMCPServer {
     }
 
     private func handleCallUI(callUIRequest: CallUIRequest): ToJsonValue {
+        println("------------------------handleCallUI------------------------")
         let lang = callUIRequest.params.lang
         if (lang == "arkui") {
             return handleCallArkUI(callUIRequest)
@@ -439,15 +441,15 @@ public abstract class AbsMCPServer {
         let title = callUIRequest.params.title
         let layout = callUIRequest.params.layout
         let comps = ArrayList<HTMLComponent>()
-        var kind = ""
+        // var kind = ""
         for(i in 0..components.size) {
             let name = components[i].name
             let args = components[i].arguments.getOrThrow().getFields()
             if (let Some(ui) <- this.findTool(name)) {
                 comps.add(HTMLComponent(ui.invoke(args).content, i + 1))
-                if (kind == "") {
-                    kind = ui.kind
-                }
+                // if (kind == "") {
+                //     kind = ui.kind
+                // }
             } else {
                 return MCPError(
                     id: callUIRequest.id,
@@ -464,6 +466,8 @@ public abstract class AbsMCPServer {
             case _ => Linear
         }
         let code = mergeHTML(title, comps, layout: htmlLayout)
+        println("---------------------------------html code--------------------------------")
+        println(code)
         return CallUIResponse(
             id: callUIRequest.id,
             kind: kind,
@@ -479,6 +483,7 @@ public abstract class AbsMCPServer {
         // let args = (callUIRequest.params.arguments ?? JsonObject()).getFields()
         let comps = ArrayList<ArkUIComponent>()
         var kind = ""
+        println("------------------------handleCallArkUI------------------------")
         for(i in 0..components.size) {
             let name = components[i].name
             let args = components[i].arguments.getOrThrow().getFields()
@@ -497,6 +502,7 @@ public abstract class AbsMCPServer {
                 )
             }
         }
+        println("------------------------mergeArkUIComponents------------------------")
         let code = mergeArkUIComponents(callUIRequest.params.title, comps, callUIRequest.params.layout)
         let now = DateTime.now()
         let timeStamp = now.toUnixTimeStamp().toNanoseconds() / 1_000_000

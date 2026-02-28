@@ -17,9 +17,10 @@ import magic.prelude.*
     ''',
     parameters: {
         title: "描述特定选择时间点事件的标题"
-    }
+    },
+    kind: "input"
 ]
-public func clockComponent(title: String) {
+public func clockUI(title: String) {
     '''
     <!DOCTYPE html>
     <html lang="zh-CN">

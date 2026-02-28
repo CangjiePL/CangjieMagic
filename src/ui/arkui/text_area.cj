@@ -368,7 +368,7 @@ public func template_textarea(info: TextAreaInfo) {
                 column->SetShadowStyle(ARKUI_SHADOW_STYLE_OUTER_DEFAULT_MD);
                 auto title = std::make_shared<ArkUITextNode>();
                 title->SetTextContent(\"{% info.title %}\");
-                title->SetFontSize(22);
+                title->SetFontSize(18);
                 title->SetPercentWidth(1);
                 title->SetPadding(15, 0.0, 10, 15);
                 title->SetFontWeight(ARKUI_FONT_WEIGHT_W600);
@@ -402,6 +402,7 @@ public func template_textarea(info: TextAreaInfo) {
                 };
                 textAreaNode->RegisterOnTextAreaChange(onTextAreaChange);
                 column->AddChild(textAreaNode);
+                column->SetMargin(0, 0, 20, 0);
                 return column;
             }
         }  // extern "C"

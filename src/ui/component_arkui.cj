@@ -41,6 +41,7 @@ public class ArkUIComponent {
     // 提取namespace NativeModule中的类并添加索引后缀
     func extractNativeModuleClass(content: String, index: Int64) {
         let nativeModulePattern = Regex("namespace\\s+NativeModule\\s*\\{((?:[^{}]++|\\{(?1)\\})*)\\}")
+        // let nativeModulePattern = Regex("namespace\\s+NativeModule\\s*\\{\\s*([\\s\\S]*?)\\s*\\}\\s*//\\s*namespace NativeModule")
         let nativeModuleMatch = nativeModulePattern.find(content)
         match (nativeModuleMatch) {
             case Some(r) =>
@@ -48,7 +49,6 @@ public class ArkUIComponent {
                 // 查找类名并添加索引后缀
                 let classPattern = Regex("class\\s+(\\w+)")
                 let classMatches = classPattern.findAll(classContent)
-
                 if (index !=0) {
                     for (classMatch in classMatches) {
                         let originalClassName = classMatch.matchString(0).split(" ")[1]
@@ -380,6 +380,15 @@ public func mergeArkUIComponents(title: String, components: ArrayList<ArkUICompo
                     nativeModule_->registerNodeEvent(handle_, NODE_DATE_PICKER_EVENT_ON_DATE_CHANGE, 0, nullptr);
                 }
 
+                void RegisterOnSliderChange(const std::function<void(ArkUI_NodeEvent *event)> &onSliderChange)
+                {
+                    if (!handle_) {
+                        return;
+                    }
+                    onSliderChange_ = onSliderChange;
+                    nativeModule_->registerNodeEvent(handle_, NODE_SLIDER_EVENT_ON_CHANGE, 0, nullptr);
+                }
+
                 void RegisterOnTimePickerChange(const std::function<void(ArkUI_NodeEvent *event)> &onTimePickChange)
                 {
                     if (!handle_) {
@@ -438,6 +447,12 @@ public func mergeArkUIComponents(title: String, components: ArrayList<ArkUICompo
                             }
                             break;
                         }
+                        case NODE_SLIDER_EVENT_ON_CHANGE: {
+                            if (onSliderChange_) {
+                                onSliderChange_(event);
+                            }
+                            break;
+                        }
                         case NODE_TIME_PICKER_EVENT_ON_CHANGE: {
                             if (onTimePickChange_) {
                                 onTimePickChange_(event);
@@ -471,6 +486,7 @@ public func mergeArkUIComponents(title: String, components: ArrayList<ArkUICompo
                 }
             private:
                 std::function<void(ArkUI_NodeEvent *event)> onClick_;
+                std::function<void(ArkUI_NodeEvent *event)> onSliderChange_;
                 std::function<void(ArkUI_NodeEvent *event)> onTextAreaChange_;
                 std::function<void(ArkUI_NodeEvent *event)> onCheckboxChange_;
                 std::function<void(ArkUI_NodeEvent *event)> onDatePickChange_;
@@ -613,37 +629,83 @@ public func mergeArkUIComponents(title: String, components: ArrayList<ArkUICompo
 
             class ArkUIFlexNode : public ArkUINode {
             public:
+                // 构造函数：与 ArkUIRowNode 完全一致的格式
                 ArkUIFlexNode()
                     : ArkUINode((NativeModuleInstance::GetInstance()->GetNativeNodeAPI())->createNode(ARKUI_NODE_FLEX)) {}
 
-                void SetFlexGrow(float grow) {
-                    assert(handle_);
-                    if (grow < 0.0f) {
-                        grow = 0.0f;
-                    }
-                    ArkUI_NumberValue value[] = {{.f32 = grow}};
-                    ArkUI_AttributeItem item = {value, 1};
-                    nativeModule_->setAttribute(handle_, NODE_FLEX_GROW, &item);
+                /**
+                * @brief 设置Flex布局属性（唯一入口，匹配 NODE_FLEX_OPTION 规范）
+                * @param direction 主轴方向（默认：ROW）
+                * @param wrap 换行方式（默认：NO_WRAP）
+                * @param justifyContent 主轴对齐（默认：START）
+                * @param alignItems 交叉轴对齐（默认：START）
+                * @param alignContent 多行文交叉轴对齐（默认：START）
+                */
+                void SetFlexOption(
+                    ArkUI_FlexDirection direction = ArkUI_FlexDirection::ARKUI_FLEX_DIRECTION_ROW,
+                    ArkUI_FlexWrap wrap = ArkUI_FlexWrap::ARKUI_FLEX_WRAP_NO_WRAP,
+                    ArkUI_FlexAlignment justifyContent = ArkUI_FlexAlignment::ARKUI_FLEX_ALIGNMENT_START,
+                    ArkUI_ItemAlignment alignItems = ArkUI_ItemAlignment::ARKUI_ITEM_ALIGNMENT_START,
+                    ArkUI_FlexAlignment alignContent = ArkUI_FlexAlignment::ARKUI_FLEX_ALIGNMENT_START
+                ) {
+                    assert(handle_); // 与 ArkUIRowNode 保持一致的句柄校验
+
+                    // 严格按官方顺序填充 value 数组（5个参数一一对应）
+                    ArkUI_NumberValue value[] = {
+                        {.i32 = static_cast<int32_t>(direction)},    // value[0]：主轴方向
+                        {.i32 = static_cast<int32_t>(wrap)},         // value[1]：换行方式
+                        {.i32 = static_cast<int32_t>(justifyContent)}, // value[2]：主轴对齐
+                        {.i32 = static_cast<int32_t>(alignItems)},   // value[3]：交叉轴对齐
+                        {.i32 = static_cast<int32_t>(alignContent)}  // value[4]：多行文交叉轴对齐
+                    };
+
+                    // 构造 AttributeItem（size=5，与 value 数组长度一致）
+                    ArkUI_AttributeItem item = {value, 5};
+
+                    // 调用 setAttribute：仅使用 NODE_FLEX_OPTION 一个属性
+                    nativeModule_->setAttribute(handle_, NODE_FLEX_OPTION, &item);
                 }
 
-                void SetFlexShrink(float shrink) {
-                    assert(handle_);
-                    if (shrink < 0.0f) {
-                        shrink = 1.0f;
-                    }
-                    ArkUI_NumberValue value[] = {{.f32 = shrink}};
-                    ArkUI_AttributeItem item = {value, 1};
-                    nativeModule_->setAttribute(handle_, NODE_FLEX_SHRINK, &item);
+                /**
+                * @brief 快捷方法：仅设置「方向+换行」（解决 filterList 换行核心需求）
+                *        其他属性沿用官方默认值，减少调用复杂度
+                */
+                void SetFlexDirectionAndWrap(ArkUI_FlexDirection direction, ArkUI_FlexWrap wrap) {
+                    // 仅覆盖方向和换行，其余用默认值
+                    SetFlexOption(direction, wrap);
                 }
 
-                void SetFlexBasis(float basis) {
-                    assert(handle_);
-                    if (basis < 0.0f) {
-                        basis = 0.0f;
-                    }
-                    ArkUI_NumberValue value[] = {{.f32 = basis}};
-                    ArkUI_AttributeItem item = {value, 1};
-                    nativeModule_->setAttribute(handle_, NODE_FLEX_BASIS, &item);
+                /**
+                * @brief 快捷方法：仅设置换行（最常用场景）
+                */
+                void SetFlexWrap(ArkUI_FlexWrap wrap) {
+                    // 方向用默认ROW，仅修改换行方式
+                    SetFlexOption(ArkUI_FlexDirection::ARKUI_FLEX_DIRECTION_ROW, wrap);
+                }
+
+                /**
+                * @brief 快捷方法：仅设置主轴对齐（仿照 ArkUIRowNode 的 SetJustifyContent）
+                */
+                void SetJustifyContent(ArkUI_FlexAlignment align) {
+                    // 仅覆盖主轴对齐，其余用默认值
+                    SetFlexOption(
+                        ArkUI_FlexDirection::ARKUI_FLEX_DIRECTION_ROW,
+                        ArkUI_FlexWrap::ARKUI_FLEX_WRAP_NO_WRAP,
+                        align // 仅修改主轴对齐
+                    );
+                }
+
+                /**
+                * @brief 快捷方法：仅设置交叉轴对齐（仿照 ArkUIRowNode 的 SetAlignItems）
+                */
+                void SetAlignItems(ArkUI_ItemAlignment align) {
+                    // 仅覆盖交叉轴对齐，其余用默认值
+                    SetFlexOption(
+                        ArkUI_FlexDirection::ARKUI_FLEX_DIRECTION_ROW,
+                        ArkUI_FlexWrap::ARKUI_FLEX_WRAP_NO_WRAP,
+                        ArkUI_FlexAlignment::ARKUI_FLEX_ALIGNMENT_START,
+                        align // 仅修改交叉轴对齐
+                    );
                 }
             };
         }  // namespace NativeModule

@@ -24,7 +24,8 @@ public class OptionInfo {
     ''',
      parameters: {
         info: "选项列表"
-     }
+     },
+     kind: "input"
 ]
 public func radioListUI(info: OptionInfo) {
     '''

@@ -218,11 +218,11 @@ public func mergeHTML(title: String,
             transition: all 0.3s ease;
         }''')
 
-        body.append('''
-            <div class="layout-toggle">
-                <button class="layout-btn" id="layoutToggleBtn">切换布局</button>
-            </div>
-        ''')
+        // body.append('''
+        //     <div class="layout-toggle">
+        //         <button class="layout-btn" id="layoutToggleBtn">切换布局</button>
+        //     </div>
+        // ''')
 
         script.append('''
         let currentIndex = ${currentIndex}

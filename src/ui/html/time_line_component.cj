@@ -27,7 +27,8 @@ public class TimeLineItem {
     使用场景：以时间轴形式展示时序类信息，如物流轨迹跟踪、项目阶段进度、活动流程步骤、版本更新日志、用户操作历史记录、订单状态变更记录，
     交互特性：信息展示型，支持上下滑动查看完整时序，
     风格属性：简约通用型
-    '''
+    ''',
+    kind: "display"
 ]
 public func timeLineUI(list: Array<TimeLineItem>) {
     '''

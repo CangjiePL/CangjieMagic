@@ -10,7 +10,7 @@ import stdx.encoding.json.{JsonValue, JsonObject, JsonException, JsonKind, JsonI
 public class ListInfo {
     @field["The theme to be presented"]
     let title: String
-    @field["The data information to be displayed"]
+    @field["The data information to be displayed, double quotation marks are prohibited"]
     let data: Array<String>
 }
 

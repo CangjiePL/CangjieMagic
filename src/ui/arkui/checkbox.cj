@@ -197,6 +197,7 @@ public func template_checkbox_list(info: SelectInfo) {
                 title->SetPadding(15, 0.0, 10, 15);
                 title->SetFontWeight(ARKUI_FONT_WEIGHT_W600);
                 column->AddChild(title);
+                column->SetMargin(0, 0, 20, 0);
 
                 {% for item in info.data %}
                     column->AddChild(CreateCheckboxRow(\"{% info.title %}\", \"{% item %}\"));

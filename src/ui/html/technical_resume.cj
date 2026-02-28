@@ -75,9 +75,10 @@ public class TechnicalResumeInfo {
     parameters: {
         info: "个人简历需要收集的信息"
     },
-    //thumbnail: "D:/Work/Cangjie/deveco5.1.1/CangjieMagic-HarmonyOS/entry/src/main/cangjie/technical_resume.png",
+    thumbnail: "D:/Work/Cangjie/deveco5.1.1/CangjieMagic-HarmonyOS/entry/src/main/cangjie/technical_resume.png",
     title: "学术科研模板",
-    //category: "resume",
+    category: "resume",
+    kind: "display"
 ]
 public func technicalResume(info: TechnicalResumeInfo) {
     '''

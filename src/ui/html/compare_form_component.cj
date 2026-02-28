@@ -28,7 +28,8 @@ public class CompareInfo {
     使用场景：展示多主体 / 多维度的对比信息，如产品参数对比、方案优劣对比、候选人资质对比、不同套餐权益对比、多地点性价比对比，
     交互特性：信息展示型，仅用于呈现信息，无交互，
     风格属性：图表型
-    '''
+    ''',
+    kind: "display"
 ]
 public func compareUI(info: CompareInfo) {
     '''

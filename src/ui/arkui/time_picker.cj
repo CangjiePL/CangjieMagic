@@ -170,6 +170,7 @@ public func template_time_picker(info: TimePickerInfo) {
                     };
                 timePickerNode->RegisterOnTimePickerChange(onClick);
                 column->AddChild(timePickerNode);
+                column->SetMargin(0, 0, 20, 0);
                 return column;
             }
         }  // extern "C"

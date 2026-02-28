@@ -23,7 +23,8 @@ public class TextURLItem {
     使用场景：以列表形式承载含跳转需求的信息，如帮助中心 FAQ 问题列表、新闻资讯摘要列表、商品分类入口列表、文档目录索引列表、权限说明详情链接列表、活动入口聚合列表，
     交互特性：导航跳转型，支持点击列表项 / 内置链接跳转，
     风格属性：简约通用型
-    '''
+    ''',
+    kind: "display"
 ]
 public func textURLListUI(items: Array<TextURLItem>) {
     '''

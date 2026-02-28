@@ -158,10 +158,8 @@ main() {
     Config.logFile = "./logs/mcp-server.log"
     println("--------------UIMCPServer----------------")
     UIMCPServer.startWith([
-        textAreaUI, radioListUI, multiListUI, selectNumberUI, selectRangeUI, singleDateUI, startEndDateUI, confirmBtnUI,
-        compareUI, creativeResume, commonResume, technicalResume, businessResume, clockComponent, imgListUI, textListUI, textURLListUI, ticketListUI, timeLineUI, pieChartUI, lineChartUI, amap, meetingUI, productCards, recipe, recommendScenices,
-        template_radio_list, template_checkbox_list, template_textarea,
-        template_tab_list, template_time_line, template_pie_chart, template_line_chart, template_text_list, template_image_text_list, template_date_picker, template_calendar_picker, template_time_picker], "0.0.0.0", 8000)
-    //UIMCPServer.startWith([textListUI, lineChartUI, pieChartUI, radioListUI, checkboxListUI, textAreaUI, timePickerUI, datePickerUI, calendarPickerUI], "0.0.0.0", 8000)
-    // HTMLUIMCPServer.startWith([textListUI, commonResume], "0.0.0.0", 8000)
+        textAreaUI, radioListUI, multiListUI,selectNumberUI, selectRangeUI, singleDateUI, startEndDateUI, confirmBtnUI,
+        compareUI, creativeResume, commonResume, technicalResume, businessResume, clockUI, imgListUI, textListUI, textURLListUI, ticketListUI, timeLineUI, pieChartUI, lineChartUI, mapUI, meetingUI, productCards, recipeUI, recommendScenices,
+        template_radio_list, template_checkbox_list, template_textarea, template_slider, template_calendar_picker,
+        template_time_line, template_pie_chart, template_line_chart, template_text_list, template_image_text_list, template_date_picker,template_time_picker], "0.0.0.0", 8000)
 }

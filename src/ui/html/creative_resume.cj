@@ -16,9 +16,10 @@ import magic.prelude.*
     parameters: {
         info: "个人简历需要收集的信息"
     },
-    //thumbnail: "D:/Work/Cangjie/deveco5.1.1/CangjieMagic-HarmonyOS/entry/src/main/cangjie/cartoon_resume.png",
+    thumbnail: "D:/Work/Cangjie/deveco5.1.1/CangjieMagic-HarmonyOS/entry/src/main/cangjie/cartoon_resume.png",
     title: "创意设计模板",
-    //category: "resume",
+    category: "resume",
+    kind: "display"
 ]
 public func creativeResume(info: CommonResumeInfo) {
     '''

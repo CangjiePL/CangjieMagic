@@ -190,7 +190,16 @@ public func template_date_picker(info: DatePickerInfo) {
                         auto eventType = OH_ArkUI_NodeEvent_GetEventType(event);
                         switch (eventType) {
                             case NODE_DATE_PICKER_EVENT_ON_DATE_CHANGE: {
-                                g_click_callback(\"{% info.title %}\", datePickerNode->GetSelectedDate());
+                                auto compEvent = OH_ArkUI_NodeEvent_GetNodeComponentEvent(event);
+                                if (compEvent) {
+                                    // 解析参数：年、月（0-11 → +1）、日
+                                    int32_t year = compEvent->data[0].i32;
+                                    int32_t month = compEvent->data[1].i32 + 1;
+                                    int32_t day = compEvent->data[2].i32;
+                                    char selectedDate[32] = {0};
+                                    snprintf(selectedDate, sizeof(selectedDate), "%d-%d-%d", year, month, day);
+                                    g_click_callback(\"{% info.title %}\", selectedDate);
+                                }
                             }
                             default: {
                                 break;
@@ -201,6 +210,7 @@ public func template_date_picker(info: DatePickerInfo) {
 
                 // 7. 将行容器添加到列容器
                 column->AddChild(datePickerNode);
+                column->SetMargin(0, 0, 20, 0);
 
                 return column;
             }

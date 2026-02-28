@@ -53,7 +53,8 @@ public func formatStringArray(arr: Array<String>): String {
     使用场景：展示各类生活场景地点信息（含名称 / 类型 / 评分 / 地址 / 人均 / 营业时间），如旅游景点推荐、美食店推荐、民宿酒店推荐、休闲娱乐场所推荐,
     交互特性：筛选过滤型，支持点击查看地点详情；支持按评分 / 距离筛选排序,
     风格属性：复杂型，适合与map UI进行组合
-    '''
+    ''',
+    kind: "display"
 ]
 public func recommendScenices(info: Array<Position>) {
     '''

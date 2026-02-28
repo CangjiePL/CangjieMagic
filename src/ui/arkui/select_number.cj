@@ -6,16 +6,22 @@ import magic.jsonable.*
 import std.collection.*
 import stdx.encoding.json.{JsonValue, JsonObject, JsonException, JsonKind, JsonInt, JsonString, JsonBool, JsonFloat, JsonArray, JsonNull}
 
-// @jsonable
-// public class SelectInfo {
-//     @field["The title of the radio selection list"]
-//     let title: String
-//     @field["The optional options data of the radio selection list"]
-//     let data: Array<String>
-// }
+@jsonable
+public class SliderInfo {
+    @field["The title of the radio selection list"]
+    let title: String
+    @field["Maximum value"]
+    public let maxValue: Int64
+    @field["Minimum value"]
+    public let minValue: Int64
+}
 
-@ui[]
-public func template_slider(info: SelectInfo) {
+@ui[
+    description: "数值选择器：选择特定单个数值",
+    lang: "arkui",
+    kind: "input"
+]
+public func template_slider(info: SliderInfo) {
     '''
         namespace NativeModule {
             class ArkUISliderNode : public ArkUINode {
@@ -282,59 +288,22 @@ public func template_slider(info: SelectInfo) {
         extern "C" {
             using namespace NativeModule;
 
-            std::shared_ptr<ArkUIRowNode> CreateRadioRow(const std::string& groupName,
-                                             const std::string& value,
-                                             const std::string& text) {
-                auto row = std::make_shared<ArkUIRowNode>();
-
-                // 创建Radio组件
-                auto radioItem = std::make_shared<ArkUIRadioNode>();
-                radioItem->SetGroupName(groupName);
-                radioItem->SetValue(value);
-                auto onClick = [groupName, value](ArkUI_NodeEvent *event) {
-                    // 从组件事件中获取基础事件对象
-                    auto *inputEvent = OH_ArkUI_NodeEvent_GetInputEvent(event);
-                    if (inputEvent == nullptr) {
-                        return;
-                    }
-                    // 从组件事件获取事件类型
-                    auto eventType = OH_ArkUI_NodeEvent_GetEventType(event);
-                    switch (eventType) {
-                        case NODE_ON_CLICK_EVENT: {
-                            g_click_callback(groupName, value);
-                        }
-                        default: {
-                            break;
-                        }
-                    }
-                };
-                radioItem->RegisterOnClick(onClick);
-
-                // 创建文本组件
-                auto textInfo = std::make_shared<ArkUITextNode>();
-                textInfo->SetTextContent(text);
-                textInfo->SetFontSize(18);
-
-                // 设置Row样式
-                row->AddChild(radioItem);
-                row->AddChild(textInfo);
-                row->SetMargin(0, 0, 10, 0);
-                row->SetBorderColor(0xFFefefef);
-                row->SetBorderWidth(1);
-                row->SetPercentWidth(0.9);
-                row->SetCornerRadius(15);
-                row->SetPadding(15, 10, 20, 10);
-
-                return row;
+            std::string formatNumber(float num) {
+                if (std::floor(num) == num) {
+                    return std::to_string(static_cast<int>(num)); // 转为整数字符串
+                } else {
+                    return std::to_string(num); // 保留小数（可结合方案1优化小数位数）
+                }
             }
 
-            std::shared_ptr<ArkUIBaseNode> CreateRadioList() {
+            std::shared_ptr<ArkUIBaseNode> CreateSelectNumber() {
                 auto column = std::make_shared<ArkUIColumnNode>();
                 column->SetBorderWidth(1);
                 column->SetPercentWidth(1);
                 column->SetCornerRadius(20);
                 column->SetBorderColor(0xFFefefef);
                 column->SetShadowStyle(ARKUI_SHADOW_STYLE_OUTER_DEFAULT_MD);
+
                 auto title = std::make_shared<ArkUITextNode>();
                 title->SetTextContent(\"{% info.title %}\");
                 title->SetFontSize(22);
@@ -342,12 +311,49 @@ public func template_slider(info: SelectInfo) {
                 title->SetPadding(15, 0.0, 10, 15);
                 title->SetFontWeight(ARKUI_FONT_WEIGHT_W600);
                 column->AddChild(title);
-                column->SetMargin(0, 0, 20, 0);
 
-                // 创建Radio选项行（复用抽取的逻辑）
-                {% for item in info.data %}
-                    column->AddChild(CreateRadioRow(\"{% info.title %}\", \"{% item %}\", \"{% item %}\"));
-                {% /for %}
+                auto row = std::make_shared<ArkUIRowNode>();
+                auto sliderNode = std::make_shared<ArkUISliderNode>();
+                sliderNode->SetMinValue({% info.minValue %});                // 最小值0
+                sliderNode->SetMaxValue({% info.maxValue %});              // 最大值100
+                sliderNode->SetStep(1.0f);                    // 步长1
+                sliderNode->SetDirection(ArkUI_SliderDirection::ARKUI_SLIDER_DIRECTION_HORIZONTAL);  // 水平方向
+                sliderNode->SetReverse(0);                    // 不反转
+                sliderNode->SetShowSteps(1);                  // 显示步长值
+                sliderNode->SetEnableHapticFeedback(1);       // 启用触觉反馈（需权限）
+                sliderNode->SetPercentWidth(0.8);
+                sliderNode->SetBlockColor(0xFF0088FF);        // 滑块按钮蓝色
+                sliderNode->SetTrackColor(0xFFE0E0E0);        // 轨道背景浅灰色
+                sliderNode->SetSelectedColor(0xFF0088FF);     // 选中轨道蓝色
+                sliderNode->SetBlockStyleCircleEllipse(
+                    ArkUI_SliderBlockStyle::ARKUI_SLIDER_BLOCK_STYLE_SHAPE,
+                    ArkUI_ShapeType::ARKUI_SHAPE_TYPE_CIRCLE,
+                    20.0f,  // 宽度20vp
+                    20.0f   // 高度20vp（圆形宽高一致）
+                );
+                auto text = std::make_shared<ArkUITextNode>();
+                auto onClick = [sliderNode, text](ArkUI_NodeEvent *event) {
+                        // 从组件事件获取事件类型
+                        auto eventType = OH_ArkUI_NodeEvent_GetEventType(event);
+                        switch (eventType) {
+                            case NODE_SLIDER_EVENT_ON_CHANGE: {
+                                auto componentEvent = OH_ArkUI_NodeEvent_GetNodeComponentEvent(event);
+                                std::string num = formatNumber(componentEvent->data[0].f32);
+                                text->SetTextContent(num);
+                                g_click_callback(\"{% info.title %}\", num);
+                            }
+                            default: {
+                                break;
+                            }
+                        }
+                    };
+                sliderNode->RegisterOnSliderChange(onClick);
+                text->SetTextContent(formatNumber(sliderNode->GetValue()));
+                text->SetFontSize(20);
+                row->AddChild(sliderNode);
+                row->AddChild(text);
+                column->AddChild(row);
+                column->SetMargin(0, 0, 20, 0);
                 return column;
             }
         }  // extern "C"

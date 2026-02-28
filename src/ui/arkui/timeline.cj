@@ -19,7 +19,7 @@ public class TimeLineData {
 }
 
 @ui[
-    description: "时间轴列表：按时间顺序线性展示事件节点，适用于流程、进度、历史记录等时序化场景",
+    description: "适用于时间跨度较大的内容呈现(比如唐宋元明清阶段介绍),按时间顺序线性展示事件节点，适合流程、进度、历史记录等时序化场景。",
     lang: "arkui",
     kind: "display"
 ]
@@ -142,24 +142,19 @@ public func template_time_line(info: Array<TimeLineData>) {
 
                 // 初始化时间轴数据
                 void InitTimelineData() {
-                    // 左显+长文本
-                    timelineItems.emplace_back(
-                        "公元618年李渊在长安称帝，建立唐朝，定都长安，开启了大唐盛世dfassssssssssssssssss dfsafa erwq qrew qrw "
-                        "fadda 进了房间按时可见度撒了看见发生了发几款开发的垃圾死了附近的萨克分类 aaaa hel  daf a fa",
-                        "唐", COLOR_RED, ShowSide::LEFT);
-                    // 右显+长文本
-                    timelineItems.emplace_back("公元960年赵匡胤发动陈桥兵变，黄袍加身，建立宋朝，史称北宋", "宋", COLOR_BLUE,
-                                            ShowSide::RIGHT);
-                    // 左显+长文本
-                    timelineItems.emplace_back("公元1271年忽必烈改国号为元，次年定都大都，统一全国疆域辽阔", "元", COLOR_YELLOW,
-                                            ShowSide::LEFT);
-                    // 右显+混合短文本
-                    timelineItems.emplace_back("公元1368年朱元璋应天称帝，建立明朝，推翻元朝统治", "明", COLOR_GREEN,
-                                            ShowSide::RIGHT);
-                    // 左显+超长文本
-                    timelineItems.emplace_back(
-                        "公元1636年皇太极改国号为清，1644年清军入关，逐步统一全国，历时近三百年", "清", COLOR_PURPLE,
-                        ShowSide::LEFT, "https://picx.zhimg.com/v2-d6f44389971daab7e688e5b37046e4e4_720w.jpg?source=172ae18b");
+                    auto side = ShowSide::LEFT;
+                    {% for (index, item) in enumerate(info) %}
+                        side = {% index %} % 2 == 0 ? ShowSide::LEFT : ShowSide::RIGHT;
+                        {% if (item.imgSrc.size == 0) %}
+                            timelineItems.emplace_back(
+                                \"{% item.content %}\", \"{% item.nodeText %}\", {% item.nodeBgColor %},
+                                side);
+                        {% else %}
+                            timelineItems.emplace_back(
+                                \"{% item.content %}\", \"{% item.nodeText %}\", {% item.nodeBgColor %},
+                                side, \"{% item.imgSrc %}\");
+                        {% /if %}
+                    {% /for %}
                 }
 
                 // 初始化绘制资源
@@ -250,7 +245,7 @@ public func template_time_line(info: Array<TimeLineData>) {
                     std::string currentWord;                        // 临时存储英文单词（避免截断）
 
                     for (char32_t c32 : utf32Text) {
-                        char32_t toChar32[] = {c32, U'\0'};
+                        char32_t toChar32[] = {c32, U'\\0'};
                         std::string singleChar = std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>().to_bytes(toChar32);
 
                         // 场景1：遇到空格 → 处理英文单词
@@ -396,7 +391,7 @@ public func template_time_line(info: Array<TimeLineData>) {
                 }
 
                 // 计算内容绘制坐标
-                void CalcContentPos(ShowSide side, float nodeCenterY, float &contentX, float &contentY,
+                void CalContentPos(ShowSide side, float nodeCenterY, float &contentX, float &contentY,
                                     bool isImage = false) {
                     contentY = nodeCenterY;
                     // 文字/图片垂直坐标计算
@@ -523,10 +518,10 @@ public func template_time_line(info: Array<TimeLineData>) {
 
                             // 绘制内容：复用缓存的wrapLines，不再调用WrapText
                             if (cache.hasImage) {
-                                CalcContentPos(item.showSide, nodeCenterY,contentX, contentY, true);
+                                CalContentPos(item.showSide, nodeCenterY,contentX, contentY, true);
                                 DrawImagePlaceholder(canvas, contentX, contentY, IMAGE_SIZE, contentY);
                             } else {
-                                CalcContentPos(item.showSide, nodeCenterY, contentX, contentY, false);
+                                CalContentPos(item.showSide, nodeCenterY, contentX, contentY, false);
                                 // 直接用缓存的wrapLines绘制，无需再次拆分
                                 DrawTextFromCache(canvas, cache.wrapLines, contentX, contentY - itemHeight * 0.5f + 25);
                             }
@@ -556,18 +551,9 @@ public func template_time_line(info: Array<TimeLineData>) {
 
             std::shared_ptr<ArkUIBaseNode> DrawCrossTimeline() {
                 auto column = std::make_shared<ArkUIColumnNode>();
-
-                auto title = std::make_shared<ArkUITextNode>();
-                title->SetTextContent("交叉布局+长文本自动换行时间轴");
-                title->SetFontSize(20);
-                title->SetPercentWidth(1);
-                title->SetPadding(15, 0, 10, 5);
-                title->SetFontWeight(ARKUI_FONT_WEIGHT_W600);
-                column->AddChild(title);
-
                 auto timelineNode = std::make_shared<ArkUICustomCrossTimelineNode>();
                 timelineNode->SetPercentWidth(1);
-                timelineNode->SetHeight(1200); // 适配多行长文本，适度加大组件高度
+                timelineNode->SetHeight(600);
                 column->AddChild(timelineNode);
 
                 column->SetMargin(0, 0, 15, 0);

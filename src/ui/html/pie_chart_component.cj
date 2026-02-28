@@ -25,7 +25,8 @@ public class PieChartData {
     使用场景：展示数据分类占比信息，如旅游支出占比（交通 / 住宿 / 餐饮）、美食消费占比（中餐 / 西餐 / 小吃）、用户偏好占比、订单来源渠道占比,
     交互特性：数据可视化型，将抽象数据转化为可视化图表，便于理解分析,
     风格属性：图表型
-    '''
+    ''',
+    kind: "display"
 ]
 public func pieChartUI(data: PieChartData) {
     '''

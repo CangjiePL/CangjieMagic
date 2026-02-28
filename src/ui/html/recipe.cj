@@ -35,9 +35,10 @@ public class Food {
     ''',
     parameters: {
         info: "菜品信息列表"
-     }
+    },
+    kind: "display"
 ]
-public func recipe(info: Array<Food>) {
+public func recipeUI(info: Array<Food>) {
     '''
 <!DOCTYPE html>
 <html lang="zh-CN">

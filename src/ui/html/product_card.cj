@@ -27,7 +27,8 @@ public class ProductCardInfo {
     使用场景：仅可展示一个产品信息，如送礼推荐，电商网站、产品列表页，
     交互特性：包含购买和查看详情按钮，支持点击交互，
     风格属性：简约通用型
-'''
+''',
+    kind: "display"
 ]
 public func productCards(product: ProductCardInfo) {
     '''

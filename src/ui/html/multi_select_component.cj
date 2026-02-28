@@ -17,7 +17,8 @@ import magic.prelude.*
     ''',
     parameters: {
         info: "选项列表"
-    }
+    },
+    kind: "input"
 ]
 public func multiListUI(info: OptionInfo) {
     '''

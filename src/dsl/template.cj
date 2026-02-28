@@ -433,7 +433,7 @@ private func split(str: String): (Array<Loop>, Array<IfElse>, Array<String>, Arr
                 ifDepth -= 1
                 if (forDepth == 0 && ifDepth == 0) {
                     let ifBodyEnd = if (hasElse) {
-                        elseStartPos - 9
+                        elseStartPos - 10
                     } else {
                         pos
                     }

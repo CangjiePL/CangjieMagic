@@ -114,6 +114,7 @@ public class UIMCPClient <: AbsMCPClient {
     }
 
     override public func callUI(components: Array<CallUIItem>, layout: String, title: String, lang: String): ToolResponse {
+        println("----------------------callUI doBeforeRequest start--------------------")
         this.doBeforeRequest()
         let req = CallUIRequest(
             params: CallUIParams(
@@ -124,7 +125,9 @@ public class UIMCPClient <: AbsMCPClient {
             )
         )
         // Send the request and receive its response
+        println("----------------------callUI send start--------------------")
         this.send(req)
+        println("----------------------callUI send end-----------------")
         let resp = this.recvResponse<CallUIResponse>()
         if (req.id != resp.id) {
             LogUtils.error("Received invalid response with mismatched id: ${resp.toJsonValue().toJsonString()}")

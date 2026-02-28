@@ -30,14 +30,15 @@ public class TabListData {
     let data: Array<Content>
 }
 
-
+// 以标签页形式切换展示不同内容，适用于多分类、多模块快速切换场景
 @ui[
-    description: "以标签页形式切换展示不同内容，适用于多分类、多模块快速切换场景",
+    description: "通用UI",
     lang: "arkui",
     kind: "display"
 ]
 public func template_tab_list(info: TabListData) {
     '''
+        #include <map>
         namespace NativeModule {
             struct Content {
                 std::string title;
@@ -48,7 +49,7 @@ public func template_tab_list(info: TabListData) {
                 std::vector<std::string> types;
 
                 Content(std::string title, std::string summary, std::string source, std::string date, std::string img, std::vector<std::string> types)
-                : title(std::move(title)), summary(std::move(summary)), source(std::move(source)), date(std::move(date)), img(std::move(img)), types(std::move(types)), {}
+                : title(std::move(title)), summary(std::move(summary)), source(std::move(source)), date(std::move(date)), img(std::move(img)), types(std::move(types)) {}
             };
 
             struct TabListData {
@@ -60,15 +61,16 @@ public func template_tab_list(info: TabListData) {
                 TabListData tabData;
 
                 {% for tag in info.tags %}
-                    tabData.types.push_back(\"{% tag %}\")
+                    tabData.types.push_back(\"{% tag %}\");
                 {% /for %}
 
+                std::vector<std::string> tags;
                 {% for item in info.data %}
-                    std::vector<std::string> tags;
                     {% for tag in item.tags %}
-                        tags.push_back(\"{% tag %}\")
+                        tags.push_back(\"{% tag %}\");
                     {% /for %}
                     tabData.content.push_back(Content(\"{% item.title %}\", \"{% item.summary %}\", \"{% item.source %}\", \"{% item.date %}\", \"{% item.imgSrc %}\", tags));
+                    tags.clear();
                 {% /for %}
                 return tabData;
             }
@@ -201,7 +203,7 @@ public func template_tab_list(info: TabListData) {
                     summaryText->SetFontSize(16);
                     summaryText->SetFontColor(0xFF666666);
                     summaryText->SetPercentWidth(1);
-                    summaryText->SetMargin(8, 8, 12, 8); // 上间距8，下间距12
+                    summaryText->SetMargin(8, 8, 12, 8);
                     card->InsertChild(summaryText, 1);
 
                     // 4.3 创建来源和时间容器
@@ -221,13 +223,6 @@ public func template_tab_list(info: TabListData) {
                     dateText->SetFontColor(0xFF999999);
                     footerContainer->InsertChild(dateText, 1);
                     card->InsertChild(footerContainer, 2);
-                    /*auto onClick = [news, g_hotNewsList](ArkUI_NodeEvent *event) -> bool {
-                        if (OH_ArkUI_NodeEvent_GetEventType(event) == NODE_ON_CLICK) {
-                            g_hotNewsList = NavigateToNewsDetail(news);
-                        }
-                        return true;
-                    };
-                    listItem->RegisterOnClick(onClick);*/
 
                     listItem->InsertChild(card, 0);
                     auto adapter = std::make_shared<ArkUIListItemAdapter>();
@@ -238,6 +233,7 @@ public func template_tab_list(info: TabListData) {
                 rootContainer->AddChild(tabBar);
                 rootContainer->AddChild(newsList);
                 return rootContainer;
+            }
         }  // extern "C"
     '''
 }
