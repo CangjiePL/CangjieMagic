@@ -186,10 +186,6 @@ public struct ParserUtils {
     public static func extractFirstValue<T>(str: String): T where T <: Jsonable<T> {
         // Parse the JSON string to the expected type
         let jv = extractFirstJsonValue(str, goal: ExtractGoal.Object)
-        try {
-            return T.fromJsonValue(jv)
-        } catch (ex: JsonableException) {
-            throw JsonableException("Failed to convert the JSON value `${jv}` as the specified type")
-        }
+        return T.fromJsonValue(jv)
     }
 }
