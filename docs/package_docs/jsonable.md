@@ -1,10 +1,14 @@
 ## Package jsonable
 - [Package jsonable](#package-jsonable)
+  - [enum ConstraintValidation](#enum-constraintvalidation)
+    - [enumeration Fail](#enumeration-fail)
+    - [enumeration Pass](#enumeration-pass)
   - [struct FieldSchema](#struct-fieldschema)
   - [interface FromJsonValue<T>](#interface-fromjsonvalue<t>)
     - [func fromJsonValue](#func-fromjsonvalue)
   - [interface Jsonable<T>](#interface-jsonable<t>)
     - [func getTypeSchema](#func-gettypeschema)
+    - [func validate](#func-validate)
   - [class JsonableException](#class-jsonableexception)
     - [func init](#func-init)
   - [interface ToJsonValue](#interface-tojsonvalue)
@@ -20,7 +24,31 @@
     - [func toJsonValue](#func-tojsonvalue-1)
     - [func toString](#func-tostring)
 
+### enum ConstraintValidation
+Represents the result of semantic validation for a `Jsonable` value.
+
+####  Fail
+```
+Fail(String)
+```
+- Description: Indicates validation failure and carries the failure message.
+- Parameters:
+  - `String`: `String`, The validation error message.
+
+####  Pass
+```
+Pass
+```
+- Description: Indicates validation success.
+
 ### struct FieldSchema
+Describes one field in an object schema.
+
+- `name`: field name in JSON.
+- `description`: human-readable field description.
+- `typeSchema`: schema of the field value.
+- `required`: whether the field is required in JSON.
+- `constraints`: semantic constraint expressions attached to the field.
 
 ### interface FromJsonValue<T>
 #### func fromJsonValue
@@ -38,6 +66,16 @@ static func fromJsonValue(json: JsonValue): T
 static func getTypeSchema(): TypeSchema
 ```
 - Description: Get the type schema of T.
+
+#### func validate
+```
+func validate(): ConstraintValidation
+```
+- Description: Validates semantic constraints on the value.
+- Notes:
+  - `@jsonable` generated types implement this automatically.
+  - Constraint checks declared by `@constraint[...]` are evaluated here.
+  - `fromJsonValue` is expected to reject invalid values when validation fails.
 
 
 ### class JsonableException
@@ -118,5 +156,4 @@ override public func toJsonValue(): JsonValue
 override public func toString(): String
 ```
 - Description: Converts the TypeSchema to a JSON string.
-
 

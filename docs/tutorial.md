@@ -1208,6 +1208,11 @@ public interface Jsonable<T> {
     static func getTypeSchema(): TypeSchema
 
     /**
+     * Validate semantic constraints on the value
+     */
+    func validate(): ConstraintValidation
+
+    /**
      * Deserialize from a Json string
      */
     static func fromJsonValue(json: JsonValue): T
@@ -1218,6 +1223,27 @@ public interface Jsonable<T> {
     func toJsonValue(): JsonValue
 }
 ```
+
+对于 `@jsonable` 类型，可以在字段上继续声明 JSON 约束：
+
+```cangjie
+@jsonable
+class ScoreCard {
+    @constraint[score > 0]
+    @constraint[score <= maxScore]
+    let score: Int64
+
+    let maxScore: Int64
+}
+```
+
+约束表达式会有以下行为：
+
+- 被写入 `getTypeSchema()` 返回的 schema 中，作为字段的 `constraints` 信息
+- 在 `fromJsonValue()` 反序列化完成后自动执行校验
+- 校验失败时抛出 `JsonableException`
+
+对于 Agent 输出场景，`chatGet<T>()` 会把 `T.getTypeSchema()` 作为输出 schema 传给模型；如果模型返回的 JSON 结构正确但违反了 `@constraint` 定义的语义约束，框架会提示模型重新生成，只输出满足约束的 JSON 结果。
 
 ### 接入新模型
 

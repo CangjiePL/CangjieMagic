@@ -1195,10 +1195,13 @@ public interface Jsonable<T> {
     static func getTypeSchema(): TypeSchema
 
     /**
+     * Validate semantic constraints on the value
+     */
+    func validate(): ConstraintValidation
+
+    /**
      * Deserialize from a Json string
      */
-```
-```markdown
     static func fromJsonValue(json: JsonValue): T
 
     /**
@@ -1207,6 +1210,27 @@ public interface Jsonable<T> {
     func toJsonValue(): JsonValue
 }
 ```
+
+For `@jsonable` types, you can also declare JSON constraints on fields:
+
+```cangjie
+@jsonable
+class ScoreCard {
+    @constraint[score > 0]
+    @constraint[score <= maxScore]
+    let score: Int64
+
+    let maxScore: Int64
+}
+```
+
+Constraint expressions have the following effects:
+
+- They are included in the schema returned by `getTypeSchema()` as field-level `constraints`
+- They are checked automatically after `fromJsonValue()` finishes deserialization
+- A failed check throws `JsonableException`
+
+For Agent outputs, `chatGet<T>()` passes `T.getTypeSchema()` to the model as the output schema. If the model returns JSON with the correct structure but violates semantic constraints declared by `@constraint`, the framework asks the model to regenerate and output corrected JSON only.
 
 ### Integrating New Models
 
