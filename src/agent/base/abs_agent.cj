@@ -7,7 +7,7 @@ import magic.core.agent.*
 import magic.core.message.Message
 import magic.config.Config
 import magic.model.ModelUtils
-import magic.jsonable.Jsonable
+import magic.jsonable.{Jsonable, JsonableException}
 import magic.log.LogUtils
 import magic.parser.{ParserUtils, ParserException}
 import magic.interaction.{AgentStartEvent, AgentEndEvent}
@@ -123,9 +123,23 @@ public abstract class AbsAgent <: Agent {
             // Convert the answer to a value of type T
             try {
                 return ParserUtils.extractFirstValue<T>(answer)
-            } catch(_: ParserException) {
+            } catch(ex: ParserException) {
                 let schema = T.getTypeSchema()
                 let userMsg = Message.user("Output does not follow the type schema: ${schema}")
+                LogUtils.info(this.name, userMsg)
+                messageList.add(userMsg)
+                // Continue to let the model repair the output
+                let msg = AgentOp.chatLLM(this, messageList, forRequest: request).getOrThrow({ =>
+                    AgentExecutionException("Fail to get chat model response")
+                }).message
+                LogUtils.info(this.name, msg)
+                messageList.add(msg)
+                answer = msg.content
+                resp.execution.setAnswer(answer)
+            } catch(ex: JsonableException) {
+                let userMsg = Message.user(
+                    "Output violates semantic constraints. Validation error: ${ex.message}\nPlease regenerate and output corrected JSON only."
+                )
                 LogUtils.info(this.name, userMsg)
                 messageList.add(userMsg)
                 // Continue to let the model repair the output

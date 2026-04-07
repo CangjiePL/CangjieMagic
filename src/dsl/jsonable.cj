@@ -18,11 +18,19 @@ private class JsonableAttr <: Attr {
 
     var typeName = ""
 
-    var variables = ArrayList<VarDecl>()
+    var fields = ArrayList<VarDecl>()
 
-    var variableDescriptions = HashMap<String, String>()
+    var fieldDescriptions = HashMap<String, String>()
 
-    var variableJsonnames = HashMap<String, String>()
+    /**
+     * Json alias names for  fields
+     */
+    var fieldAliasNames = HashMap<String, String>()
+
+    /**
+     * Json constraints for fields
+     */
+    var fieldConstraints = HashMap<String, ArrayList<Tokens>>()
 
     static func parse(attrTokens: Tokens): JsonableAttr {
         let map = AttrParser(attrTokens).parseAttr(
@@ -33,20 +41,37 @@ private class JsonableAttr <: Attr {
     }
 }
 
+private func collectJsonableChildMessages(attr: JsonableAttr): Unit {
+
+}
+
 public macro jsonable(input: Tokens): Tokens {
     let attr = JsonableAttr()
+    // `getChildMessages` must be called in the macro function,
+    // Collect field descriptions
     for (m in getChildMessages("field")) {
-        if (m.hasItem("fieldDesc")) {
-            let s = m.getString("fieldDesc")
-            let items = s.split(":", 2) // Format: ${name}:${desc}
-            attr.variableDescriptions.add(items[0], items[1])
+        if (m.hasItem("field")) {
+            let s = m.getString("field")
+            let items = s.split(":", 2) // Format: ${varName}:${desc}
+            attr.fieldDescriptions.add(items[0], items[1])
         }
     }
-    for (m in getChildMessages("jsonname")) {
-        if (m.hasItem("jsonname")) {
-            let s = m.getString("jsonname")
-            let items = s.split(":", 2) // Format: ${varName}:${jsonName}
-            attr.variableJsonnames.add(items[0], items[1])
+    for (m in getChildMessages("alias")) {
+        if (m.hasItem("alias")) {
+            let s = m.getString("alias")
+            let items = s.split(":", 2) // Format: ${varName}:${aliasName}
+            attr.fieldAliasNames.add(items[0], items[1])
+        }
+    }
+    for (m in getChildMessages("constraint")) {
+        let varName = m.getString("fieldName")
+        let expr = m.getTokens("expr")
+        if (let Some(constraints) <- attr.fieldConstraints.get(varName)) {
+            constraints.add(expr)
+        } else {
+            let constraints = ArrayList<Tokens>()
+            constraints.add(expr)
+            attr.fieldConstraints.add(varName, constraints)
         }
     }
     return transformJsonable(input, attr)
@@ -55,18 +80,31 @@ public macro jsonable(input: Tokens): Tokens {
 public macro jsonable(attrTokens: Tokens, input: Tokens): Tokens {
     let attr = JsonableAttr.parse(attrTokens)
 
+    // `getChildMessages` must be called in the macro function,
+    // Collect field descriptions
     for (m in getChildMessages("field")) {
-        if (m.hasItem("fieldDesc")) {
-            let s = m.getString("fieldDesc")
-            let items = s.split(":", 2) // Format: ${name}:${desc}
-            attr.variableDescriptions.add(items[0], items[1])
+        if (m.hasItem("field")) {
+            let s = m.getString("field")
+            let items = s.split(":", 2) // Format: ${varName}:${desc}
+            attr.fieldDescriptions.add(items[0], items[1])
         }
     }
-    for (m in getChildMessages("jsonname")) {
-        if (m.hasItem("jsonname")) {
-            let s = m.getString("jsonname")
-            let items = s.split(":", 2) // Format: ${varName}:${jsonName}
-            attr.variableJsonnames.add(items[0], items[1])
+    for (m in getChildMessages("alias")) {
+        if (m.hasItem("alias")) {
+            let s = m.getString("alias")
+            let items = s.split(":", 2) // Format: ${varName}:${aliasName}
+            attr.fieldAliasNames.add(items[0], items[1])
+        }
+    }
+    for (m in getChildMessages("constraint")) {
+        let varName = m.getString("fieldName")
+        let expr = m.getTokens("expr")
+        if (let Some(constraints) <- attr.fieldConstraints.get(varName)) {
+            constraints.add(expr)
+        } else {
+            let constraints = ArrayList<Tokens>()
+            constraints.add(expr)
+            attr.fieldConstraints.add(varName, constraints)
         }
     }
 
@@ -128,12 +166,13 @@ private func transformJsonableType(typeDecl: Decl, superTypes: ArrayList<TypeNod
     }
 
     attr.typeName = name.value
-    attr.variables = getMemberVariables(body)
+    attr.fields = getMemberVariables(body)
 
     let ctorMethod = buildCtorMethod(attr)
     let getTypeSchemaMethod = buildGetTypeSchemaMethod(attr)
     let fromJsonMethod = buildFromJsonMethod(attr)
     let toJsonMethod = buildToJsonMethod(attr)
+    let validateMethod = buildValidateMethod(attr)
 
     let genericTypeParamTokens = getGenericTypeParamsTokens(typeDecl)
     let genericConstraintTokens = getGenericConstraintsTokens(typeDecl)
@@ -151,6 +190,7 @@ private func transformJsonableType(typeDecl: Decl, superTypes: ArrayList<TypeNod
             $getTypeSchemaMethod
             $fromJsonMethod
             $toJsonMethod
+            $validateMethod
         }
     )
 }
@@ -176,7 +216,7 @@ private func buildCtorMethod(attr: JsonableAttr): Tokens {
     let params = ArrayList<Tokens>()
     let paramsWithDefaultValue = ArrayList<Tokens>()
 
-    for (varDecl in attr.variables) {
+    for (varDecl in attr.fields) {
         let v = newIdentifierToken(varDecl.identifier.value)
         let tyName = varDecl.declType.toTokens()
         try {
@@ -190,7 +230,7 @@ private func buildCtorMethod(attr: JsonableAttr): Tokens {
     let comma = Token(TokenKind.COMMA)
 
     let body: Tokens = joinTokens(
-        attr.variables |>
+        attr.fields |>
             map { varDecl: VarDecl =>
                 let id =  newIdentifierToken(varDecl.identifier.value)
                 return quote(this.$id = $id)
@@ -207,23 +247,32 @@ private func buildCtorMethod(attr: JsonableAttr): Tokens {
 
 private func buildGetTypeSchemaMethod(attr: JsonableAttr): Tokens {
     let body = Tokens()
-    for (varDecl in attr.variables) {
+    for (varDecl in attr.fields) {
         let varName = varDecl.identifier.value
         let tyName = varDecl.declType.toTokens()
 
-        let desc = attr.variableDescriptions.get(varName) ?? ""
+        let desc = attr.fieldDescriptions.get(varName) ?? ""
         let descToken = if (desc.contains("\n")) {
             newMultilineStringLiteralToken(desc)
         } else {
             newLiteralToken(desc)
         }
 
-        let jsonName = attr.variableJsonnames.get(varName) ?? varName
+        let jsonName = attr.fieldAliasNames.get(varName) ?? varName
         let jsonNameToken = newLiteralToken(jsonName)
+        let constraints = attr.fieldConstraints.get(varName) ?? ArrayList<Tokens>()
+        let constraintStringTokens = constraints |>
+            map { tokens: Tokens => newLiteralToken(tokens.toString()) } |>
+            collectArrayList
+        let constraintsToken = if (constraintStringTokens.isEmpty()) {
+            quote([])
+        } else {
+            quote([ $(joinTokens(constraintStringTokens, Token(TokenKind.COMMA))) ])
+        }
 
         let required = newLiteralToken(!isOption(varDecl.declType))
         body.append(quote(
-            fields.add(FieldSchema($jsonNameToken, $descToken, $tyName.getTypeSchema(), required: $required))
+            fields.add(FieldSchema($jsonNameToken, $descToken, $tyName.getTypeSchema(), required: $required, constraints: $constraintsToken))
         ))
     }
     return quote(
@@ -270,7 +319,7 @@ private func buildFromJsonMethod(attr: JsonableAttr): Tokens {
     // )
     //
     let body: Tokens = joinTokens(
-        attr.variables |>
+        attr.fields |>
             map { varDecl: VarDecl =>
                 let varName = varDecl.identifier.value
                 let fieldName = newIdentifierToken(varName)
@@ -280,8 +329,8 @@ private func buildFromJsonMethod(attr: JsonableAttr): Tokens {
                 } else {
                     varName
                 }
-                let fieldJsonname = attr.variableJsonnames.get(varName) ?? fieldNameStr
-                let fieldJsonStr = newLiteralToken(fieldJsonname)
+                let fieldJsonName = attr.fieldAliasNames.get(varName) ?? fieldNameStr
+                let fieldJsonStr = newLiteralToken(fieldJsonName)
                 let varType = varDecl.declType
 
                 // Case 1: field has default value
@@ -314,16 +363,20 @@ private func buildFromJsonMethod(attr: JsonableAttr): Tokens {
                 case JsonKind.JsObject => json.asObject()
                 case _ => throw JsonableException("Get JSON object error.")
             }
-            return $className(
+            let value = $className(
                 $body
             )
+            return match (value.validate()) {
+                case ConstraintValidation.Pass => value
+                case ConstraintValidation.Fail(msg) => throw JsonableException(msg)
+            }
         }
     )
 }
 
 private func buildToJsonMethod(attr: JsonableAttr): Tokens {
     let body = Tokens()
-    for (varDecl in attr.variables) {
+    for (varDecl in attr.fields) {
         let varName = varDecl.identifier.value
 
         let fieldName = if (varName.startsWith("`")) {
@@ -332,7 +385,7 @@ private func buildToJsonMethod(attr: JsonableAttr): Tokens {
             varName
         }
         let tempVar = newIdentifierToken("__TEMP_OF__${fieldName}")
-        let fieldJsonname = attr.variableJsonnames.get(varName) ?? fieldName
+        let fieldJsonName = attr.fieldAliasNames.get(varName) ?? fieldName
         // A field of type Option means it's a non-required fields,
         // so, if its value is JsonNull, skip it.
         if (isOption(varDecl.declType)) {
@@ -340,12 +393,12 @@ private func buildToJsonMethod(attr: JsonableAttr): Tokens {
                 let $tempVar = $(newIdentifierToken(varName)).toJsonValue()
                 match ($tempVar.kind()) {
                     case JsonKind.JsNull => ()
-                    case _ => map.add($(newLiteralToken(fieldJsonname)), $tempVar)
+                    case _ => map.add($(newLiteralToken(fieldJsonName)), $tempVar)
                 }
             ))
         } else {
             body.append(quote(
-                map.add($(newLiteralToken(fieldJsonname)), $(newIdentifierToken(varName)).toJsonValue())
+                map.add($(newLiteralToken(fieldJsonName)), $(newIdentifierToken(varName)).toJsonValue())
             ))
         }
     }
@@ -355,6 +408,27 @@ private func buildToJsonMethod(attr: JsonableAttr): Tokens {
             let map = HashMap<String, JsonValue>()
             $body
             return JsonObject(map)
+        }
+    )
+}
+
+private func buildValidateMethod(attr: JsonableAttr): Tokens {
+    let body = Tokens()
+    for (varDecl in attr.fields) {
+        let varName = varDecl.identifier.value
+        for (constraint in attr.fieldConstraints.get(varName) ?? ArrayList<Tokens>()) {
+            let msg = "Constraint violation in ${attr.typeName}.${varName}: ${constraint.toString()}"
+            body.append(quote(
+                if (!($constraint)) {
+                    return ConstraintValidation.Fail($(newLiteralToken(msg)))
+                }
+            ))
+        }
+    }
+    return quote(
+        public func validate(): ConstraintValidation {
+            $body
+            return ConstraintValidation.Pass
         }
     )
 }
@@ -380,6 +454,7 @@ private func transformJsonableEnum(enumDecl: EnumDecl, attr: JsonableAttr): Toke
     let getTypeSchemaMethod = buildEnumGetTypeSchemaMethod(ctorNames)
     let fromJsonMethod = buildEnumFromJsonMethod(name, ctorNames)
     let toJsonMethod = buildEnumToJsonMethod(name, ctorNames)
+    let validateMethod = buildEnumValidateMethod()
 
     // Compose all `Tokens`
     return quote(
@@ -389,6 +464,7 @@ private func transformJsonableEnum(enumDecl: EnumDecl, attr: JsonableAttr): Toke
             $getTypeSchemaMethod
             $fromJsonMethod
             $toJsonMethod
+            $validateMethod
         }
     )
 }
@@ -439,6 +515,14 @@ private func buildEnumToJsonMethod(enumName: Token, ctorNames: ArrayList<String>
             return match (this) {
                 $matchBody
             }
+        }
+    )
+}
+
+private func buildEnumValidateMethod(): Tokens {
+    return quote(
+        public func validate(): ConstraintValidation {
+            return ConstraintValidation.Pass
         }
     )
 }

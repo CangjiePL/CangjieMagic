@@ -6,7 +6,7 @@ package magic.model.dashscope
 import magic.core.model.*
 import magic.utils.http.*
 import magic.dsl.jsonable
-import magic.jsonable.{Jsonable, FieldSchema, JsonableException, TypeSchema}
+import magic.jsonable.{Jsonable, FieldSchema, JsonableException, TypeSchema, ConstraintValidation}
 
 import stdx.encoding.json.*
 import std.collection.{ArrayList, HashMap}

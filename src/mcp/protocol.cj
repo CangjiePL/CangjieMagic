@@ -294,6 +294,10 @@ public enum ToolCallContent <: Jsonable<ToolCallContent> {
         }
     }
 
+    public func validate(): ConstraintValidation {
+        return ConstraintValidation.Pass
+    }
+
     public func getValue(): String {
         match (this) {
             case ToolCallContent.Text(text) => text.text

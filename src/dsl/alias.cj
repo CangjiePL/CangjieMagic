@@ -6,21 +6,28 @@ macro package magic.dsl
 import std.collection.ArrayList
 import std.ast.*
 
-public macro jsonname(attr: Tokens, input: Tokens): Tokens {
+/**
+ * @jsonable
+ * class A {
+ *   @alias("alias_a")
+ *   let a: String
+ * }
+ */
+public macro alias(attr: Tokens, input: Tokens): Tokens {
     assertParentContext("jsonable")
     let jsonName = if (let Some(d) <- getAttrJsonName(attr)) {
         d
     } else {
-        throw DslException("@jsonname must contain string literals as attributes")
+        throw DslException("@alias must contain string literals as attributes")
     }
 
     let decl: Decl = parseDecl(input)
     if (!decl.isVarDecl()) {
-        throw DslException("@jsonname must annotate variable definitions")
+        throw DslException("@alias must annotate variable definitions")
     }
     let varDecl = decl.asVarDecl()
     let varName = varDecl.identifier.value
-    setItem("jsonname", "${varName}:${jsonName}")
+    setItem("alias", "${varName}:${jsonName}")
     return input
 }
 
@@ -31,12 +38,12 @@ func getAttrJsonName(attr: Tokens): Option<String> {
             continue
         }
         if (!isTokenStringLiteral(token)) {
-            throw DslException("@jsonname accepts only string values as attributes")
+            throw DslException("@alias accepts only string values as attributes")
         }
         buffer.add(token.value)
     }
     if (buffer.size != 1) {
-        throw DslException("@jsonname accepts only one string value as attribute")
+        throw DslException("@alias accepts only one string value as attribute")
     }
     return buffer[0]
 }

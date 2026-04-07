@@ -60,6 +60,10 @@ public class Document <: Jsonable<Document> & ToString & ToPrompt & Serializable
         this.serialize().toJson()
     }
 
+    public func validate(): ConstraintValidation {
+        return ConstraintValidation.Pass
+    }
+
     public func serialize(): DataModel {
         let dm = DataModelStruct()
         dm.add(field<String>("id", id))

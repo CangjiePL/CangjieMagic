@@ -7,7 +7,7 @@ import magic.core.agent.{Agent, AgentRequest, AgentExecutionException}
 import magic.core.message.{MessageRole, WithTag}
 import magic.agent_executor.common.{AgentTask, AgentExecutionInfo}
 import magic.dsl.jsonable
-import magic.jsonable.{Jsonable, JsonableException, FieldSchema, TypeSchema}
+import magic.jsonable.{Jsonable, JsonableException, FieldSchema, TypeSchema, ConstraintValidation}
 
 import std.collection.{ArrayList, HashMap, map, collectArray}
 import stdx.encoding.json.*

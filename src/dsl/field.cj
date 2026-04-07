@@ -20,7 +20,7 @@ public macro field(attr: Tokens, input: Tokens): Tokens {
     }
     let varDecl = decl.asVarDecl()
     let name = varDecl.identifier.value
-    setItem("fieldDesc", "${name}:${desc}")
+    setItem("field", "${name}:${desc}")
     return input
 }
 

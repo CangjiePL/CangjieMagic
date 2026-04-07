@@ -17,11 +17,21 @@ public interface FromJsonValue<T> {
     static func fromJsonValue(json: JsonValue): T
 }
 
+public enum ConstraintValidation {
+    | Pass
+    | Fail(String)
+}
+
 public interface Jsonable<T> <: FromJsonValue<T> & ToJsonValue /* where T <: Jsonable<T> */ {
     /**
      * Get the type schema of T
      */
     static func getTypeSchema(): TypeSchema
+
+    /**
+     * Validate semantic constraints on the value.
+     */
+    func validate(): ConstraintValidation
 
     /**
      * Deserialize from a Json string
@@ -53,6 +63,10 @@ extend String <: Jsonable<String> {
     public func toJsonValue(): JsonValue {
         return JsonString(this)
     }
+
+    public func validate(): ConstraintValidation {
+        return ConstraintValidation.Pass
+    }
 }
 
 extend Int64 <: Jsonable<Int64> {
@@ -68,6 +82,10 @@ extend Int64 <: Jsonable<Int64> {
 
     public func toJsonValue(): JsonValue {
         return JsonInt(this)
+    }
+
+    public func validate(): ConstraintValidation {
+        return ConstraintValidation.Pass
     }
 }
 
@@ -85,6 +103,10 @@ extend Float64 <: Jsonable<Float64> {
     public func toJsonValue(): JsonValue {
         return JsonFloat(this)
     }
+
+    public func validate(): ConstraintValidation {
+        return ConstraintValidation.Pass
+    }
 }
 
 extend Bool <: Jsonable<Bool> {
@@ -100,6 +122,10 @@ extend Bool <: Jsonable<Bool> {
 
     public func toJsonValue(): JsonValue {
         return JsonBool(this)
+    }
+
+    public func validate(): ConstraintValidation {
+        return ConstraintValidation.Pass
     }
 }
 
@@ -125,6 +151,10 @@ extend<T> Array<T> <: ToJsonValue where T <: ToJsonValue {
 extend<T> Array<T> <: Jsonable<Array<T>> where T <: Jsonable<T> {
     public static func getTypeSchema(): TypeSchema {
         return TypeSchema.Arr(T.getTypeSchema())
+    }
+
+    public func validate(): ConstraintValidation {
+        return ConstraintValidation.Pass
     }
 }
 
@@ -156,6 +186,10 @@ extend<T> ArrayList<T> <: Jsonable<ArrayList<T>> where T <: Jsonable<T> {
     public static func getTypeSchema(): TypeSchema {
         return TypeSchema.Arr(T.getTypeSchema())
     }
+
+    public func validate(): ConstraintValidation {
+        return ConstraintValidation.Pass
+    }
 }
 
 //------------------------------------------------------------------------
@@ -165,6 +199,10 @@ extend<T> Option<T> <: Jsonable<Option<T>> where T <: Jsonable<T> {
         // Option<T> has the same type schema as T
         // However, Option<T> is not required
         return T.getTypeSchema()
+    }
+
+    public func validate(): ConstraintValidation {
+        return ConstraintValidation.Pass
     }
 }
 
@@ -216,6 +254,10 @@ extend<T> HashMap<String, T> <: Jsonable<HashMap<String, T>> where T <: Jsonable
         // however, it has no type schemas because its fields are non-determined.
         throw JsonableException("HashMap has no type schema")
     }
+
+    public func validate(): ConstraintValidation {
+        return ConstraintValidation.Pass
+    }
 }
 
 extend JsonObject <: Jsonable<JsonObject> {
@@ -229,5 +271,9 @@ extend JsonObject <: Jsonable<JsonObject> {
 
     public static func fromJsonValue(json: JsonValue): JsonObject {
         return json.asObject()
+    }
+
+    public func validate(): ConstraintValidation {
+        return ConstraintValidation.Pass
     }
 }
