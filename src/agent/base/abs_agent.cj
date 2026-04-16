@@ -117,8 +117,13 @@ public abstract class AbsAgent <: Agent {
     public func chatGet<T>(request: AgentRequest): Option<T> where T <: Jsonable<T> {
         request.outputSchema = T.getTypeSchema()
         let resp = this.chat(request)
+        let execution = match (resp.status) {
+            case AgentResponseStatus.Success => resp.execution
+            case AgentResponseStatus.Cancelled => throw AgentCancelException(reason: resp.content)
+            case AgentResponseStatus.Failed => throw AgentExecutionException(resp.content)
+        }
         // Reuse the message list
-        var (answer, messageList) = (resp.content, resp.execution.messages)
+        var (answer, messageList) = (resp.content, execution.messages)
         for (_ in 0..Config.outputRepairRetryNumber) {
             // Convert the answer to a value of type T
             try {
@@ -135,7 +140,7 @@ public abstract class AbsAgent <: Agent {
                 LogUtils.info(this.name, msg)
                 messageList.add(msg)
                 answer = msg.content
-                resp.execution.setAnswer(answer)
+                execution.setAnswer(answer)
             } catch(ex: JsonableException) {
                 let userMsg = Message.user(
                     "Output violates semantic constraints. Validation error: ${ex.message}\nPlease regenerate and output corrected JSON only."
@@ -149,7 +154,7 @@ public abstract class AbsAgent <: Agent {
                 LogUtils.info(this.name, msg)
                 messageList.add(msg)
                 answer = msg.content
-                resp.execution.setAnswer(answer)
+                execution.setAnswer(answer)
             }
         }
         LogUtils.error("${this.name}: Fail to generate an output following the type schema")

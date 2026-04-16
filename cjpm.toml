@@ -47,6 +47,8 @@
   output-type = "executable"
 [package.package-configuration."magic.examples.quick_start"]
   output-type = "executable"
+[package.package-configuration."magic.examples.jsonable_constraint_verifier"]
+  output-type = "executable"
 [package.package-configuration."magic.examples.mcp_server"]
   output-type = "executable"
 [package.package-configuration."magic.examples.mcp_client"]

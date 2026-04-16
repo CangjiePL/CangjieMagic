@@ -284,31 +284,6 @@ private func buildGetTypeSchemaMethod(attr: JsonableAttr): Tokens {
     )
 }
 
-private func getDefaultValueOfType(typeNode: TypeNode): Option<Tokens> {
-    if (let Some(varType) <- (typeNode as RefType)) {
-        return match (varType.identifier.value) {
-            case "Option" => Some(quote(JsonNull()))
-            case "Array" => Some(quote(JsonArray()))
-            case "String" => Some(quote(JsonString("")))
-            case _ => Some(quote(JsonObject()))
-        }
-    }
-    if (let Some(varType) <- (typeNode as PrimitiveType)) {
-        if (varType.keyword.value.startsWith("Int")) {
-            return Some(quote(JsonInt(0)))
-        } else if (varType.keyword.value.startsWith("Float")) {
-            return Some(quote(JsonFloat(0.0)))
-        } else if (varType.keyword.value.startsWith("Bool")) {
-            return Some(quote(JsonBool(false)))
-        } else if (varType.keyword.value.startsWith("Rune")) {
-            return Some(quote(JsonString("")))
-        } else {
-            return Option.None
-        }
-    }
-    return Option.None
-}
-
 private func buildFromJsonMethod(attr: JsonableAttr): Tokens {
     let className = newIdentifierToken(attr.typeName)
 
@@ -331,6 +306,7 @@ private func buildFromJsonMethod(attr: JsonableAttr): Tokens {
                 }
                 let fieldJsonName = attr.fieldAliasNames.get(varName) ?? fieldNameStr
                 let fieldJsonStr = newLiteralToken(fieldJsonName)
+                let missingFieldMsg = newLiteralToken("Get JSON object field `${fieldJsonName}` error")
                 let varType = varDecl.declType
 
                 // Case 1: field has default value
@@ -342,14 +318,18 @@ private func buildFromJsonMethod(attr: JsonableAttr): Tokens {
                 } catch (_: ASTException) {
                     // Skip the exception
                 }
-                // Case 2: field type has default value
-                if (let Some(defaultValue) <- getDefaultValueOfType(varType)) {
+                // Case 2: optional fields default to null when missing
+                if (isOption(varType)) {
                     return quote(
-                        $fieldName: $varType.fromJsonValue(jo.get($fieldJsonStr).getOrDefault({ => $defaultValue }))
+                        $fieldName: $varType.fromJsonValue(jo.get($fieldJsonStr).getOrDefault({ => JsonNull() }))
                     )
                 } else{ // Case 3: field has no default value
                     return quote(
-                        $fieldName: $varType.fromJsonValue(jo.get($fieldJsonStr).getOrThrow({ => throw JsonableException("Get JSON object field error")}))
+                        $fieldName: $varType.fromJsonValue(
+                            jo.get($fieldJsonStr).getOrThrow({
+                                => throw JsonableException($missingFieldMsg)
+                            })
+                        )
                     )
                 }
 
