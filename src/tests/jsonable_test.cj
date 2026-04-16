@@ -39,6 +39,27 @@ private class ConstrainedData {
     let alias: String
 }
 
+@jsonable
+private class AliasedOptionalData {
+    @alias["user_name"]
+    let name: String
+
+    let note: Option<String>
+}
+
+@jsonable
+private class RequiredFieldData {
+    let count: Int64
+    let title: String
+    let enabled: Bool
+}
+
+@jsonable
+private class AliasedRequiredFieldData {
+    @alias["user_score"]
+    let score: Int64
+}
+
 @Test
 class TestJsonable {
     @TestCase
@@ -109,6 +130,64 @@ class TestJsonable {
         @Assert(schema.contains("\"constraints\""), true)
         @Assert(schema.contains("number > 0"), true)
         @Assert(schema.contains("this.alias.size < this.name.size"), true)
+    }
+
+    @TestCase
+    func testConstraintValidateReturnsFirstFailureInDeclarationOrder() {
+        let invalid = ConstrainedData(number: 0, limit: 0, name: "cangjie", alias: "cj")
+        match (invalid.validate()) {
+            case ConstraintValidation.Fail(msg) =>
+                @Assert(msg, "Constraint violation in ConstrainedData.number: number > 0")
+            case _ => @Assert(false, true)
+        }
+    }
+
+    @TestCase
+    func testAliasAndOptionalRoundTrip() {
+        let value = AliasedOptionalData(name: "alice", note: None)
+        let json = value.toJsonValue().toJsonString()
+        @Assert(json.contains("user_name"), true)
+        @Assert(json.contains("\"name\""), false)
+        @Assert(json.contains("\"note\""), false)
+
+        let parsed = AliasedOptionalData.fromJsonValue(
+            JsonValue.fromStr("{\"user_name\": \"bob\", \"note\": \"memo\"}")
+        )
+        @Assert(parsed.name, "bob")
+        @Assert(parsed.note.getOrThrow(), "memo")
+    }
+
+    @TestCase
+    func testSchemaUsesAliasAndMarksOptionalFieldAsNotRequired() {
+        let schema = AliasedOptionalData.getTypeSchema().toJsonValue().toJsonString()
+        @Assert(schema.contains("\"user_name\""), true)
+        @Assert(schema.contains("\"name\""), false)
+        @Assert(schema.contains("\"required\":[\"user_name\"]"), true)
+        @Assert(schema.contains("\"note\""), true)
+    }
+
+    @TestCase
+    func testMissingRequiredPrimitiveFieldsThrows() {
+        var failed = false
+        try {
+            let _ = RequiredFieldData.fromJsonValue(JsonValue.fromStr("{}"))
+        } catch (ex: JsonableException) {
+            failed = true
+            @Assert(ex.message.contains("count"), true)
+        }
+        @Assert(failed, true)
+    }
+
+    @TestCase
+    func testMissingAliasedRequiredFieldMentionsAliasName() {
+        var failed = false
+        try {
+            let _ = AliasedRequiredFieldData.fromJsonValue(JsonValue.fromStr("{}"))
+        } catch (ex: JsonableException) {
+            failed = true
+            @Assert(ex.message.contains("user_score"), true)
+        }
+        @Assert(failed, true)
     }
 
     @TestCase

@@ -27,7 +27,7 @@ private class OpenAIChatResponse {
     let created: Int64
     let model: String
     let choices: Array<Choice>
-    let usage: OpenAIChatUsage
+    let usage: Option<OpenAIChatUsage>
 }
 
 @jsonable
@@ -40,9 +40,9 @@ private class Choice {
 @jsonable
 private class OpenAIChatMessage {
     let role: String
-    let content: String
+    let content: Option<String>
     let reasoning_content: Option<String>
-    let tool_calls: Array<OpenAIChatToolCall>
+    let tool_calls: Option<Array<OpenAIChatToolCall>>
 }
 
 @jsonable
@@ -80,7 +80,7 @@ private class ChunkResponse {
 
 @jsonable
 private class ChunkChoice {
-    let finish_reason: String
+    let finish_reason: Option<String>
     let index: Int64
     let delta: Delta
 }
@@ -88,7 +88,7 @@ private class ChunkChoice {
 @jsonable
 private class Delta {
     let role: Option<String>
-    let content: String
+    let content: Option<String>
     let reasoning_content: Option<String>
 }
 
@@ -202,7 +202,7 @@ private class AsyncChatChunkStream <: Iterator<AsyncChatChunk> {
                 this.role = MessageRole.fromStr(role) // Do we need to check the role?
             }
             reasonContentBuilder.append(delta.reasoning_content ?? "")
-            contentBuilder.append(delta.content)
+            contentBuilder.append(delta.content ?? "")
         }
         // Check whether this chunk contains the usage
         if (let Some(respUsage) <- chunkResp.usage) {
@@ -386,11 +386,11 @@ public class OpenAIChatModel <: ChatModel {
         let openAIMsg = choice.message
         let message = Message(
             MessageRole.fromStr(openAIMsg.role),
-            openAIMsg.content,
+            openAIMsg.content ?? "",
             reason: openAIMsg.reasoning_content
         )
         let toolRequests = ArrayList<ToolRequest>()
-        for (toolCall in choice.message.tool_calls) {
+        for (toolCall in choice.message.tool_calls ?? []) {
             // If the output is too long, output may be truncated,
             // which result in incomplete Json string of the tool call
             try {
@@ -404,12 +404,22 @@ public class OpenAIChatModel <: ChatModel {
                 LogUtils.debug("Invalid tool call: ${toolCall.toJsonValue().toJsonString()}")
             }
         }
-        let usage = ChatUsage(
-            promptTokens: resp.usage.prompt_tokens,
-            completionTokens: resp.usage.completion_tokens,
-            // totalTokens: resp.usage.total_tokens,
-            timeCost: duration
-        )
+        let usage = match (resp.usage) {
+            case Some(respUsage) =>
+                ChatUsage(
+                    promptTokens: respUsage.prompt_tokens,
+                    completionTokens: respUsage.completion_tokens,
+                    // totalTokens: respUsage.total_tokens,
+                    timeCost: duration
+                )
+            case None =>
+                ChatUsage(
+                    promptTokens: 0,
+                    completionTokens: 0,
+                    // totalTokens: 0,
+                    timeCost: duration
+                )
+        }
         return ChatResponse(resp.model, message, toolRequests: toolRequests.toArray(), usage: usage)
     }
 
