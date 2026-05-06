@@ -30,7 +30,7 @@ protected class AnswerTool <: NativeFuncTool {
             name: AnswerTool.NAME,
             description: AnswerTool.DESC,
             parameters: [
-                ("result", "The final result", TypeSchema.Str)
+                ("result", "The final result", TypeSchema.Str, true)
             ],
             extra: HashMap([
                 ("filterable", "false"),
@@ -59,7 +59,7 @@ protected class AnswerToolWithOutput <: NativeFuncTool {
             name: AnswerTool.NAME,
             description: AnswerTool.DESC,
             parameters: [
-                ("result", AnswerToolWithOutput.PARAM_DESC, schema)
+                ("result", AnswerToolWithOutput.PARAM_DESC, schema, true)
             ],
             extra: HashMap([
                 ("filterable", "false"),
@@ -92,7 +92,7 @@ protected class ToolResultViewerTool <: NativeFuncTool  {
             name: ToolResultViewerTool.NAME,
             description: "This tool is used to query \"detailed results of past tool invocations\". Note that only summarized tool invocation results can be queried. Each summarized tool invocation has a unique ID, so ensure the correct ID is provided.",
             parameters: [
-                (ToolResultViewerTool.PARAM, "Unique id of the summarized tool invocation", TypeSchema.Int)
+                (ToolResultViewerTool.PARAM, "Unique id of the summarized tool invocation", TypeSchema.Int, true)
             ],
             extra: HashMap([
                 ("filterable", "false"),
@@ -128,7 +128,7 @@ protected class RetrieverTool <: NativeFuncTool {
             name: RetrieverTool.NAME,
             description: "Search related knowledge and context",
             parameters: [
-                ("query", "The query to search", TypeSchema.Str)
+                ("query", "The query to search", TypeSchema.Str, true)
             ],
             extra: HashMap([
                 ("filterable", "true"),
@@ -164,4 +164,3 @@ protected struct BuiltinToolUtils {
         RetrieverTool(task)
     }
 }
-

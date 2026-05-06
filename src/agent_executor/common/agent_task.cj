@@ -18,6 +18,7 @@ import magic.interaction.*
 import magic.model.ModelUtils
 import magic.tool.{SimpleToolFilter, AgentAsTool, SubAgentMode}
 import magic.prompt.Template
+import magic.parser.ParserException
 
 import std.collection.{ArrayList, ArrayDeque, HashMap, any, map, collectArray}
 import std.sync.AtomicBool
@@ -30,6 +31,19 @@ private enum ToolCallCheckStatus {
     | Warning(String)
     | Hijack(ToolResponse)
     | Stop(ToolResponse)
+}
+
+private struct ToolInvocationResult {
+    public let request: ToolRequest
+    public let content: String
+
+    public init(
+        request!: ToolRequest,
+        content!: String
+    ) {
+        this.request = request
+        this.content = content
+    }
 }
 
 /**
@@ -333,34 +347,58 @@ public open class AgentTask {
                 AgentOp.handle(event: ToolCallEndEvent(this.agent, toolRequest, resp), forRequest: this.request)
                 return resp.content
         }
-        // Now, the normal process of calling a tool
         let toolResult = this.doInvokeTool(toolRequest)
         // Call event handlers
-        AgentOp.handle(event: ToolCallEndEvent(this.agent, toolRequest, ToolResponse(toolResult)), forRequest: this.request)
+        AgentOp.handle(event: ToolCallEndEvent(this.agent, toolResult.request, ToolResponse(toolResult.content)), forRequest: this.request)
         // If there is a warning, add it to the result to guide the agent
         if (let Some(warning) <- warningOpt) {
-            return "${warning}\n\nResult of the tool:\n${toolResult}"
+            return "${warning}\n\nResult of the tool:\n${toolResult.content}"
         } else {
-            return toolResult
+            return toolResult.content
         }
     }
 
     /**
      * Invoke the tool and return the result
      */
-    private func doInvokeTool(toolRequest: ToolRequest): String {
+    private func doInvokeTool(toolRequest: ToolRequest): ToolInvocationResult {
         // Find the tool
         let toolOpt = this.findTool(toolRequest.name)
         if (toolOpt.isNone()) {
             // LLM generate invalid tool calling?
             let names = this.agent.toolManager.tools |> map { t => t.name } |> collectArray
-            return "Tool `${toolRequest.name}` not found in ${names}"
+            return ToolInvocationResult(
+                request: toolRequest,
+                content: "Tool `${toolRequest.name}` not found in ${names}"
+            )
         }
         let tool = toolOpt.getOrThrow()
+        return try {
+            this.executeToolCall(toolRequest, tool)
+        } catch (ex: ToolArgumentValidationException) {
+            this.repairToolArguments(toolRequest, tool, ex)
+        } catch (ex: ToolException) {
+            ToolInvocationResult(
+                request: toolRequest,
+                content: "Tool `${toolRequest.name}` did not run successfully. Reason: ${ex.reason}"
+            )
+        } catch (ex: Exception) {
+            let strBuilder = StringBuilder()
+            for (ste in ex.getStackTrace()) {
+                strBuilder.append("${ste.fileName}:${ste.lineNumber} ${ste.methodName}\n")
+            }
+            ToolInvocationResult(
+                request: toolRequest,
+                content: "Fail to invoke the tool with exception `${strBuilder}`"
+            )
+        }
+    }
+
+    private func executeToolCall(toolRequest: ToolRequest, tool: Tool): ToolInvocationResult {
         match (AgentOp.handle(event: ToolCallStartEvent(this.agent, toolRequest), forRequest: this.request)) {
-            case EventResponse.Continue => () // Do nothing
+            case EventResponse.Continue => ()
             case EventResponse.Continue(resp) =>
-                return resp.content
+                return ToolInvocationResult(request: toolRequest, content: resp.content)
             case EventResponse.Terminate(resp) =>
                 let toolResult = resp.content
                 this.stop(
@@ -368,29 +406,15 @@ public open class AgentTask {
                     result: toolResult,
                     log: "Terminated by tool call event handler"
                 )
-                return toolResult
+                return ToolInvocationResult(request: toolRequest, content: toolResult)
         }
-        // Invoke the tool
-        let toolResponse = try {
-            if (tool is AgentAsTool) {
-                // If the tool is an agent, we invoke the agent
-                this.invokeAgentAsTool(toolRequest, (tool as AgentAsTool).getOrThrow())
-            } else {
-                // Normal tool invocation
-                tool.invoke(toolRequest.args)
-            }
-        } catch (ex: AgentCancelException) {
-            throw ex // throw the exception to the upper level to cancel the execution
-        } catch (ex: ToolException) {
-            return "Tool `${toolRequest.name}` did not run successfully. Reason: ${ex.reason}"
-        } catch (ex: Exception) {
-            let strBuilder = StringBuilder()
-            for (ste in ex.getStackTrace()) {
-                strBuilder.append("${ste.fileName}:${ste.lineNumber} ${ste.methodName}\n")
-            }
-            return "Fail to invoke the tool with exception `${strBuilder}`"
+        let toolResponse = if (tool is AgentAsTool) {
+            // If the tool is an agent, we invoke the agent
+            this.invokeAgentAsTool(toolRequest, (tool as AgentAsTool).getOrThrow())
+        } else {
+            // Normal tool invocation
+            tool.invoke(toolRequest.args)
         }
-        // Save the tool result
         var toolResult = toolResponse.content
         // Check whether the tool has special attributes
         if ((tool.extra.get("compactable") ?? "false") == "true" &&
@@ -413,7 +437,77 @@ public open class AgentTask {
                 log: "Tool `${tool.name}` terminates the task"
             )
         }
-        return toolResult
+        return ToolInvocationResult(request: toolRequest, content: toolResult)
+    }
+
+    private func buildToolArgumentRepairPrompt(toolRequest: ToolRequest, tool: Tool, error: ToolArgumentValidationException): String {
+        return """
+The previous tool call arguments are invalid.
+
+Tool name: ${tool.name}
+Original tool call:
+${toolRequest.toJsonValue().toJsonString()}
+
+Tool schema:
+${tool.toJsonValue().toJsonString()}
+
+Validation error:
+${error.reason}
+
+Return only a corrected JSON tool call for the same tool name `${tool.name}`.
+Do not switch tools. Do not explain anything. Output JSON only.
+"""
+    }
+
+    private func repairToolArguments(toolRequest: ToolRequest, tool: Tool, error: ToolArgumentValidationException): ToolInvocationResult {
+        var currentRequest = toolRequest
+        var lastError = error.reason
+        for (_ in 0..Config.outputRepairRetryNumber) {
+            let prompt = this.buildToolArgumentRepairPrompt(currentRequest, tool, error)
+            this.execution.addMessage(Message.user(prompt))
+            let repairResp = this.chatLLM(this.execution.messages, tools: [tool])
+            this.execution.addMessage(repairResp.message)
+            let repairedRequests = try {
+                AgentOp.parseToolRequests(this.agent, repairResp, forRequest: this.request)
+            } catch (ex: ParserException) {
+                lastError = ex.reason
+                continue
+            }
+            if (repairedRequests.size != 1) {
+                lastError = "Repaired tool call should contain exactly one request, but got ${repairedRequests.size}"
+                continue
+            }
+            let repairedRequest = repairedRequests[0]
+            if (repairedRequest.name != tool.name) {
+                lastError = "Repaired tool call changed tool name from `${tool.name}` to `${repairedRequest.name}`"
+                continue
+            }
+            currentRequest = repairedRequest
+            return try {
+                this.executeToolCall(currentRequest, tool)
+            } catch (ex: ToolArgumentValidationException) {
+                lastError = ex.reason
+                continue
+            } catch (ex: ToolException) {
+                return ToolInvocationResult(
+                    request: currentRequest,
+                    content: "Tool `${currentRequest.name}` did not run successfully. Reason: ${ex.reason}"
+                )
+            } catch (ex: Exception) {
+                let strBuilder = StringBuilder()
+                for (ste in ex.getStackTrace()) {
+                    strBuilder.append("${ste.fileName}:${ste.lineNumber} ${ste.methodName}\n")
+                }
+                return ToolInvocationResult(
+                    request: currentRequest,
+                    content: "Fail to invoke the tool with exception `${strBuilder}`"
+                )
+            }
+        }
+        return ToolInvocationResult(
+            request: currentRequest,
+            content: "Tool `${tool.name}` argument repair failed after ${Config.outputRepairRetryNumber} retries. Last error: ${lastError}"
+        )
     }
 
     /**

@@ -102,7 +102,7 @@ private let ANSWER_TOOL = NativeFuncTool(
     name: "_answer_",
     description: "This is a special tool to provide the the final answer.",
     parameters: [
-        ("result", "The final JSON Value according to expected type schema.", TypeSchema.Obj([]))
+        ("result", "The final JSON Value according to expected type schema.", TypeSchema.Obj([]), true)
     ],
     extra: HashMap([
         ("filterable", "false"),

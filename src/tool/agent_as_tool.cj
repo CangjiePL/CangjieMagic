@@ -84,9 +84,9 @@ public class AgentAsTool <: AbsTool {
             // For context-inheriting sub-agents, a simple question parameter suffices
             match (this.mode) {
                 case SubAgentMode.Isolated =>
-                    [ToolParameter("question", PARAM_DESCRIPTION, TypeSchema.Str)]
+                    [ToolParameter("question", PARAM_DESCRIPTION, TypeSchema.Str, required: true)]
                 case SubAgentMode.WithContext =>
-                    [ToolParameter("question", SIMPLE_PARAM_DESCRIPTION, TypeSchema.Str)]
+                    [ToolParameter("question", SIMPLE_PARAM_DESCRIPTION, TypeSchema.Str, required: true)]
             }
         }
     }

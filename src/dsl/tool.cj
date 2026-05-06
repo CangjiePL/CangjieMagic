@@ -189,9 +189,15 @@ private func initNativeFuncTool(toolAttr: ToolAttr, funcDecl: FuncDecl): Tokens 
         let paramName: String = param.identifier.value
         let paramTy = param.paramType
         let paramDesc: String = toolAttr.parameters.get(paramName) ?? ""
+        let required = newLiteralToken(!isOption(paramTy))
 
         parameters.add(
-            quote(($(newLiteralToken(paramName)), $(newLiteralToken(paramDesc)), $paramTy.getTypeSchema()))
+            quote((
+                $(newLiteralToken(paramName)),
+                $(newLiteralToken(paramDesc)),
+                $paramTy.getTypeSchema(),
+                $required
+            ))
         )
     }
     let retType = getRetTypeTokens(funcDecl)
@@ -244,11 +250,19 @@ private func transformToolExecuteLambda(toolAttr: ToolAttr, funcDecl: FuncDecl):
         let rawArg = if (isOption(paramTy)) {
             quote(args.get( $(newLiteralToken(paramName)) ).getOrDefault({=> JsonNull()}))
         } else {
-            quote(args.get( $(newLiteralToken(paramName)) ).getOrThrow({=> ToolException($errMsg)}))
+            quote(args.get( $(newLiteralToken(paramName)) ).getOrThrow({=> ToolArgumentValidationException(toolName: $(newLiteralToken(funcDecl.identifier.value)), parameterName: $(newLiteralToken(paramName)), reason: $errMsg)}))
         }
         let arg: Token = newIdentifierToken("arg_${i}")
          argConversion.append(quote(
-            let $arg = $paramTy.fromJsonValue($rawArg)
+            let $arg = try {
+                $paramTy.fromJsonValue($rawArg)
+            } catch (ex: JsonableException) {
+                throw ToolArgumentValidationException(
+                    toolName: $(newLiteralToken(funcDecl.identifier.value)),
+                    parameterName: $(newLiteralToken(paramName)),
+                    reason: ex.message
+                )
+            }
             // let $arg = $paramTy.fromJsonStr($rawArg)
         ))
         args.add(arg)
