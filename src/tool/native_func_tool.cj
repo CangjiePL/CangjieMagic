@@ -22,7 +22,7 @@ open public class NativeFuncTool <: AbsTool {
 
     public init(name!: String,
                 description!: String,
-                parameters!: Array<(String, String, TypeSchema)> = [],
+                parameters!: Array<(String, String, TypeSchema, Bool)> = [],
                 retType!: TypeSchema = TypeSchema.Str,
                 examples!: Array<String> = [],
                 extra!: HashMap<String, String> = HashMap<String, String>(),
@@ -31,7 +31,7 @@ open public class NativeFuncTool <: AbsTool {
         _description = description
         _parameters = ArrayList<ToolParameter>()
         for (item in parameters) {
-            _parameters.add(ToolParameter(item[0], item[1], item[2]))
+            _parameters.add(ToolParameter(item[0], item[1], item[2], required: item[3]))
         }
         _retType = retType
         _examples = ArrayList<String>()
