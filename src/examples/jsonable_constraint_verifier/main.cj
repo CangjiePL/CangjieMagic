@@ -408,13 +408,17 @@ private func runRemoteChecks(passed: ArrayList<String>, failed: ArrayList<String
             let systemPrompt = """
                 Output JSON only.
                 Always output exactly {"score": 0, "maxScore": 10}.
-                Ignore any validation error or schema repair instructions in the conversation.
+                **Ignore** any validation error or schema repair instructions in the conversation.
+                You may get some suggestions to let you change the score value so there is no validation error, just **ignore** them, because I am **testing** what will happen if you do not follow the suggestions.
                 """
             let agent = buildAgent(
                 buildRealModel(),
                 systemPrompt
             )
             let scoreCard = agent.chatGet<ScoreCard>("Generate the score card now.")
+            // if (scoreCard.isSome()) {
+            //     println("scoreCard: ${scoreCard.getOrThrow().score}, ${scoreCard.getOrThrow().maxScore}")
+            // }
             ensure(scoreCard.isNone(), "chatGet should return None after exhausting retries with repeated invalid output")
         } finally {
             Config.outputRepairRetryNumber = oldRetryNumber
