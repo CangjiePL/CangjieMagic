@@ -24,10 +24,46 @@ private class Data {
     let f7: HashMap<String, NestedData>
 }
 
+@jsonable
+private class ConstrainedData {
+    @constraint[number > 0]
+    @constraint[number < limit]
+    let number: Int64
+
+    let limit: Int64
+
+    @constraint[name.size < 10]
+    @constraint[this.alias.size < this.name.size]
+    let name: String
+
+    let alias: String
+}
+
+@jsonable
+private class AliasedOptionalData {
+    @alias["user_name"]
+    let name: String
+
+    let note: Option<String>
+}
+
+@jsonable
+private class RequiredFieldData {
+    let count: Int64
+    let title: String
+    let enabled: Bool
+}
+
+@jsonable
+private class AliasedRequiredFieldData {
+    @alias["user_score"]
+    let score: Int64
+}
+
 @Test
 class TestJsonable {
     @TestCase
-    func test() {
+    func testJsonable() {
         let nest = NestedData(f1: "f1", f2: 2, f3: 0.0)
         let data = Data(
             f4: "f4",
@@ -38,8 +74,136 @@ class TestJsonable {
         let js = data.toJsonValue().toJsonString()
         let jv = JsonValue.fromStr(js)
         let data2 = Data.fromJsonValue(jv)
+        @Assert(data2.f4.getOrThrow(), data.f4.getOrThrow())
+        @Assert(data2.f5.size, data.f5.size)
+        @Assert(data2.f5[0].f1, data.f5[0].f1)
+        @Assert(data2.f5[0].f2, data.f5[0].f2)
+        @Assert(data2.f5[0].f3, data.f5[0].f3)
+        @Assert(data2.f6.size, data.f6.size)
+        @Assert(data2.f6[0], data.f6[0])
         @Assert(data2.f7["f7"].f1, data.f7["f7"].f1)
         @Assert(data2.f7["f7"].f2, data.f7["f7"].f2)
         @Assert(data2.f7["f7"].f3, data.f7["f7"].f3)
+    }
+
+    @TestCase
+    func testConstraintValidate() {
+        let valid = ConstrainedData(number: 3, limit: 10, name: "cangjie", alias: "cj")
+        match (valid.validate()) {
+            case ConstraintValidation.Pass => @Assert(true, true)
+            case _ => @Assert(false, true)
+        }
+
+        let invalid = ConstrainedData(number: 0, limit: 10, name: "cangjie", alias: "cj")
+        match (invalid.validate()) {
+            case ConstraintValidation.Fail(msg) =>
+                @Assert(msg, "Constraint violation in ConstrainedData.number: number > 0")
+            case _ => @Assert(false, true)
+        }
+    }
+
+    @TestCase
+    func testConstraintFromJsonValue() {
+        let value = ConstrainedData.fromJsonValue(
+            JsonValue.fromStr("{\"number\": 3, \"limit\": 10, \"name\": \"cangjie\", \"alias\": \"cj\"}")
+        )
+        match (value.validate()) {
+            case ConstraintValidation.Pass => @Assert(true, true)
+            case _ => @Assert(false, true)
+        }
+
+        var failed = false
+        try {
+            let _ = ConstrainedData.fromJsonValue(
+                JsonValue.fromStr("{\"number\": 11, \"limit\": 10, \"name\": \"cangjie\", \"alias\": \"cj\"}")
+            )
+        } catch (ex: JsonableException) {
+            failed = true
+            @Assert(ex.message, "Constraint violation in ConstrainedData.number: number < limit")
+        }
+        @Assert(failed, true)
+    }
+
+    @TestCase
+    func testConstraintSchema() {
+        let schema = ConstrainedData.getTypeSchema().toJsonValue().toJsonString()
+        @Assert(schema.contains("\"constraints\""), true)
+        @Assert(schema.contains("number > 0"), true)
+        @Assert(schema.contains("this.alias.size < this.name.size"), true)
+    }
+
+    @TestCase
+    func testConstraintValidateReturnsFirstFailureInDeclarationOrder() {
+        let invalid = ConstrainedData(number: 0, limit: 0, name: "cangjie", alias: "cj")
+        match (invalid.validate()) {
+            case ConstraintValidation.Fail(msg) =>
+                @Assert(msg, "Constraint violation in ConstrainedData.number: number > 0")
+            case _ => @Assert(false, true)
+        }
+    }
+
+    @TestCase
+    func testAliasAndOptionalRoundTrip() {
+        let value = AliasedOptionalData(name: "alice", note: None)
+        let json = value.toJsonValue().toJsonString()
+        @Assert(json.contains("user_name"), true)
+        @Assert(json.contains("\"name\""), false)
+        @Assert(json.contains("\"note\""), false)
+
+        let parsed = AliasedOptionalData.fromJsonValue(
+            JsonValue.fromStr("{\"user_name\": \"bob\", \"note\": \"memo\"}")
+        )
+        @Assert(parsed.name, "bob")
+        @Assert(parsed.note.getOrThrow(), "memo")
+    }
+
+    @TestCase
+    func testSchemaUsesAliasAndMarksOptionalFieldAsNotRequired() {
+        let schema = AliasedOptionalData.getTypeSchema().toJsonValue().toJsonString()
+        @Assert(schema.contains("\"user_name\""), true)
+        @Assert(schema.contains("\"name\""), false)
+        @Assert(schema.contains("\"required\":[\"user_name\"]"), true)
+        @Assert(schema.contains("\"note\""), true)
+    }
+
+    @TestCase
+    func testMissingRequiredPrimitiveFieldsThrows() {
+        var failed = false
+        try {
+            let _ = RequiredFieldData.fromJsonValue(JsonValue.fromStr("{}"))
+        } catch (ex: JsonableException) {
+            failed = true
+            @Assert(ex.message.contains("count"), true)
+        }
+        @Assert(failed, true)
+    }
+
+    @TestCase
+    func testMissingAliasedRequiredFieldMentionsAliasName() {
+        var failed = false
+        try {
+            let _ = AliasedRequiredFieldData.fromJsonValue(JsonValue.fromStr("{}"))
+        } catch (ex: JsonableException) {
+            failed = true
+            @Assert(ex.message.contains("user_score"), true)
+        }
+        @Assert(failed, true)
+    }
+
+    @TestCase
+    func testBuiltinsValidatePass() {
+        let value: Int64 = 1
+        match ("hello".validate()) {
+            case ConstraintValidation.Pass => @Assert(true, true)
+            case _ => @Assert(false, true)
+        }
+        match (value.validate()) {
+            case ConstraintValidation.Pass => @Assert(true, true)
+            case _ => @Assert(false, true)
+        }
+        match (ArrayList<String>(["a"]).validate()) {
+            case ConstraintValidation.Pass => @Assert(true, true)
+            case _ => @Assert(false, true)
+        }
     }
 }

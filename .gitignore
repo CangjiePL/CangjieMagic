@@ -1,3 +1,7 @@
+AGENTS.md
+CLAUDE.md
+.claude
+.magic-cli
 .vscode/
 cjpm.lock
 target/

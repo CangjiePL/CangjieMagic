@@ -1,41 +1,9 @@
-## Package storage
-- [Package storage](#package-storage)
-  - [interface LocalStorage](#interface-localstorage)
-    - [func close](#func-close)
-    - [prop collection](#prop-collection)
-    - [func commit](#func-commit)
-    - [func reset](#func-reset)
-    - [prop workspace](#prop-workspace)
+## Historical Package storage
 
-### interface LocalStorage
-#### func close
-```
-func close(): Unit
-```
-- Description: Closes the LocalStorage interface.
+`magic.storage` is not present in the current `src/` public package layout.
 
-#### prop collection
-```
-prop collection: String
-```
-- Description: Represents the collection property of the LocalStorage interface.
+If you are looking for current data-access primitives, start with:
 
-#### func commit
-```
-func commit(): Unit
-```
-- Description: Commits the current state of the LocalStorage.
-
-#### func reset
-```
-func reset(): Unit
-```
-- Description: Resets the LocalStorage interface to its initial state.
-
-#### prop workspace
-```
-prop workspace: String
-```
-- Description: Represents the workspace property of the LocalStorage interface.
-
-
+- [`core.rag`](./core.rag.md) for retrieval and vector-database contracts
+- [`rag.vdb`](./rag.vdb.md) for vector-store implementations
+- [`rag.splitter`](./rag.splitter.md) for document splitting and loading

@@ -12,7 +12,8 @@ public struct FieldSchema {
         public let name: String,
         public let description: String,
         public let typeSchema: TypeSchema,
-        public let required!: Bool = true
+        public let required!: Bool = true,
+        public let constraints!: Array<String> = []
     ) { }
 }
 
@@ -46,6 +47,9 @@ public enum TypeSchema <: ToJsonValue & ToString {
                     let fieldTsJo = field.typeSchema.toJsonValue().asObject()
                     if (!field.description.isEmpty()) {
                         fieldTsJo.put("description", JsonString(field.description))
+                    }
+                    if (!field.constraints.isEmpty()) {
+                        fieldTsJo.put("constraints", JsonUtils.buildJsonArray(field.constraints))
                     }
                     propertiesJo.put(field.name, fieldTsJo)
                     if (field.required) {

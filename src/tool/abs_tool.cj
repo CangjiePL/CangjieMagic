@@ -26,7 +26,9 @@ public abstract class AbsTool <: Tool {
                 paramTypeSchema.put("description", JsonString(param.description))
             }
             properties.put(param.name, paramTypeSchema)
-            required.add(param.name)
+            if (param.required) {
+                required.add(param.name)
+            }
         }
         let toolSchema = JsonUtils.buildJsonObject([
             ("name", JsonString(name)),
