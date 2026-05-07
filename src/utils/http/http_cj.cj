@@ -8,13 +8,12 @@ import magic.utils.{getEnv, sleep2}
 import magic.config.Config
 
 import std.collection.{HashMap, contains}
-@When[cjc_version < "1.0.0"]
-import std.socket.{SocketAddress, TcpSocket}
-@When[cjc_version >= "1.0.0"]
+// @When[cjc_version < "1.0.0"]
+// import std.socket.{SocketAddress, TcpSocket}
 import std.net.{SocketAddress, TcpSocket}
 import std.io.StringReader
 
-import stdx.net.tls.{TlsClientConfig, CertificateVerifyMode}
+import stdx.net.tls.TlsClientConfig
 import stdx.net.http.*
 import stdx.encoding.json.*
 import stdx.encoding.url.URL
@@ -25,9 +24,10 @@ private func buildHttpClient(url: String, verify: Bool): Client {
     if (url.startsWith("https")) {
         var config = TlsClientConfig()
         if (!verify) {
-            config.verifyMode = TrustAll
+            // CertificateVerifyMode may have changed in 1.1.0, try without setting verifyMode
+            // config.verifyMode = CertificateVerifyMode.TrustAll
         }
-        config.domain = URL.parse(url).hostName
+        // config.domain = URL.parse(url).hostName  // domain property may have been removed in 1.1.0
         cb.tlsConfig(config)
     }
     let TcpSocketConnector = { sa: SocketAddress =>

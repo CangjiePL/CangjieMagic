@@ -4,6 +4,7 @@
 macro package magic.dsl
 
 import std.ast.*
+import std.fs.exists
 
 class PromptAttr <: Attr {
     PromptAttr(map: AttrMap) { super(map) }

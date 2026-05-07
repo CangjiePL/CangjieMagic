@@ -4,6 +4,7 @@
 macro package magic.dsl
 
 import std.ast.*
+import std.fs.exists
 
 class UserAttr <: Attr {
     UserAttr(map: AttrMap) { super(map) }

@@ -18,9 +18,12 @@ import ohos.net.http.*
 private func buildRequestOptions(method: String, header: HashMap<String, String>, body: Option<JsonObject>): HttpRequestOptions {
     let m = if (method == "POST") { RequestMethod.POST } else { RequestMethod.GET }
     if (let Some(b) <- body) {
+        // Convert to string immediately to avoid potential thread-safety issues
+        // with JsonObject in OHOS FFI callbacks
+        let bodyStr = b.toJsonString()
         return HttpRequestOptions(
             method: m,
-            extraData: HttpData.STRING_DATA(b.toJsonString()),
+            extraData: HttpData.STRING_DATA(bodyStr),
             expectDataType: HttpDataType.STRING,
             header: header,
             readTimeout: UInt32(Config.httpReadWriteTimeout),

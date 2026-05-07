@@ -3,46 +3,43 @@
  */
 package magic.utils
 
-@When[cjc_version < "1.0.0"]
-import std.time.Duration
-@When[cjc_version < "1.0.0"]
-import std.sync.sleep
-
-@When[cjc_version < "1.0.0"]
-import std.os.process.{Process, ProcessRedirect, SubProcess}
-//--------------------------------------------------------
+// @When[cjc_version < "1.0.0"]
+// import std.time.Duration
+// @When[cjc_version < "1.0.0"]
+// import std.sync.sleep
 @When[cjc_version >= "1.0.0"]
+import std.core.Duration
+@When[cjc_version >= "1.0.0"]
+import std.core.sleep
+
+// @When[cjc_version < "1.0.0"]
+// import std.os.process.{Process, ProcessRedirect, SubProcess}
+//--------------------------------------------------------
 import std.process.{launch, ProcessRedirect, SubProcess}
 
 import std.env.{getVariable, setVariable, getVariables}
 //======================================================
 
-@When[cjc_version < "1.0.0"]
-import std.os.getEnv as stdGetEnv
-@When[cjc_version < "1.0.0"]
-import std.os.setEnv as stdSetEnv
+// @When[cjc_version < "1.0.0"]
+// import std.os.getEnv as stdGetEnv
+// @When[cjc_version < "1.0.0"]
+// import std.os.setEnv as stdSetEnv
 
 import std.collection.HashMap
 
-@When[cjc_version < "1.0.0"]
-protected func getEnv(envVarName: String): Option<String> {
-    stdGetEnv(envVarName)
-}
-@When[cjc_version >= "1.0.0"]
-protected func getEnv(envVarName: String): Option<String> {
+// @When[cjc_version < "1.0.0"]
+// protected func getEnv(envVarName: String): Option<String> {
+//     stdGetEnv(envVarName)
+// }
+public func getEnv(envVarName: String): Option<String> {
     getVariable(envVarName)
 }
 
-@When[cjc_version < "1.0.0"]
-protected func setEnv(envVarName: String, value: String): Unit {
-    stdSetEnv(envVarName, value)
-}
-@When[cjc_version >= "1.0.0"]
-protected func setEnv(envVarName: String, value: String): Unit {
+public func setEnv(envVarName: String, value: String): Unit {
     setVariable(envVarName, value)
 }
 
-protected func newProcess(name: String, args: Array<String>, env!: Array<(String, String)> = [], redirectErr!: Bool = true): SubProcess {
+public func newProcess(name: String, args: Array<String>, env!: Array<(String, String)> = [], redirectErr!: Bool = true): SubProcess {
     let allEnv = HashMap(getVariables())
     allEnv.add(all: env)
     if (redirectErr) {

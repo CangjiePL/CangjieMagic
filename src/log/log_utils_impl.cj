@@ -15,13 +15,11 @@ import std.io.OutputStream
 
 import stdx.log.LogLevel
 
-@When[cjc_version < "1.0.0"]
-import std.log.SimpleLogger
+// @When[cjc_version < "1.0.0"]
+// import std.log.SimpleLogger
 
-@When[cjc_version >= "1.0.0"]
 import stdx.logger.SimpleLogger
 
-@When[cjc_version >= "1.0.0"]
 private func buildSimpleLogger(output: OutputStream): SimpleLogger {
     let logger = SimpleLogger(output)
     logger.level = match (Config.logLevel) {
@@ -37,12 +35,16 @@ private func buildSimpleLogger(output: OutputStream): SimpleLogger {
 @When[ohos != "true"]
 struct LogUtilsImpl {
     private static var _LOGGER: Option<SimpleLogger> = None
-    private static var CURR_LOG_FILE: String = Config.logFile
+    private static var CURR_LOG_FILE: Option<String> = None
 
     private static prop LOGGER: SimpleLogger {
         get() {
             // Log file is changed
-            if (Config.logFile != CURR_LOG_FILE) {
+            let currLogFile = match (CURR_LOG_FILE) {
+                case Some(file) => file
+                case None => ""
+            }
+            if (Config.logFile != currLogFile) {
                 let logger = buildLogger()
                 _LOGGER = logger
                 return logger
@@ -71,7 +73,7 @@ struct LogUtilsImpl {
             let file = File(path, OpenMode.Write)
             buildSimpleLogger(file)
         }
-        CURR_LOG_FILE = Config.logFile
+        CURR_LOG_FILE = Some(Config.logFile)
         return logger
     }
 

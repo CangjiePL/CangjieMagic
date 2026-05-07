@@ -3,7 +3,7 @@
  */
 package magic.utils
 
-import std.fs.{File, Path, exists, OpenMode, FileInfo}
+import std.fs.{File, Path, exists, OpenMode, FileInfo, canonicalize}
 import std.io.StringReader
 import std.collection.{HashMap, ArrayList, ArrayQueue, map, enumerate, collectArray}
 import std.deriving.Derive

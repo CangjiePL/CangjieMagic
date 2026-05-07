@@ -9,6 +9,7 @@ import magic.config.Config
 import magic.interaction.ConsolePrinter
 
 import std.console.Console
+import std.fs.Path
 
 // Modified from: https://gist.github.com/jlia0/db0a9695b3ca7609c9b1a08dcbf872c9
 private let PROMPT = """
@@ -87,9 +88,12 @@ main() {
     Config.logLevel = "INFO"
     Config.logFile = "./logs/abc.log"
     Config.enableAgentLog = true
-    // Config.env["DEEPSEEK_API_KEY"] = "<your api key>"
+    // 加载 .env 文件中的环境变量
+    Config.env.load(Path(".env"))
+    
     let agent = MagicAgent()
-    let q = "..."
+    // 修改为实际的问题，而不是占位符
+    let q = "你好，请介绍一下你自己"
     let asyncResp = agent.asyncChat(AgentRequest(q, verbose: true))
     ConsolePrinter.print(asyncResp, verbose: true)
 }

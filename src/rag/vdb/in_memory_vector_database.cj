@@ -7,8 +7,10 @@ import magic.core.rag.{Vector, VectorDatabase, SearchResult}
 import magic.log.LogUtils
 
 import std.collection.ArrayList
-@When[cjc_version < "1.0.0"]
-import std.math.min
+// @When[cjc_version < "1.0.0"]
+// import std.math.min
+@When[cjc_version >= "1.0.0"]
+import std.core.min
 
 struct VectorWithIndex {
     VectorWithIndex(

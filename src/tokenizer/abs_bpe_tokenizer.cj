@@ -4,14 +4,13 @@
 package magic.tokenizer
 
 internal import magic.core.tokenizer.Tokenizer
-internal import magic.utils.{readFile, exists}
+internal import magic.utils.readFile
 internal import magic.core.tokenizer.*
 internal import std.collection.*
 internal import std.regex.*
 internal import std.fs.*
 internal import stdx.encoding.json.*
 internal import std.collection.*
-internal import std.fs.*
 internal import std.io.*
 internal import std.regex.*
 internal import stdx.serialization.serialization.*

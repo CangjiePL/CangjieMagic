@@ -5,16 +5,15 @@ macro package magic.dsl
 
 import std.collection.{ArrayList, map, collectArray}
 import std.ast.*
-@When[cjc_version >= "1.0.0"]
-internal import std.fs.exists
+import std.fs.exists
 
 import std.fs.{File, OpenMode}
 import std.io.StringReader
 
-@When[cjc_version < "1.0.0"]
-protected func exists(path: String): Bool {
-    return File.exists(path) || Directory.exists(path)
-}
+// @When[cjc_version < "1.0.0"]
+// protected func exists(path: String): Bool {
+//     return File.exists(path) || Directory.exists(path)
+// }
 
 protected func readFile(path: String): String {
     try (file = File(path, OpenMode.Read)) {

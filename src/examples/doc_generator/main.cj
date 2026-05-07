@@ -242,6 +242,8 @@ func mergeFileDocs(outDir: Path, docs!: Option<ArrayList<Doc>>): Unit  {
 main() {
     Config.logLevel = "DEBUG"
     Config.logFile = "./logs/abc.log"
+    // 加载 .env 文件中的环境变量
+    Config.env.load(Path(".env"))
 
     if (!exists(OUT_DIR)) {
         Directory.create(OUT_DIR, recursive: true)

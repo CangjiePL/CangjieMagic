@@ -6,8 +6,9 @@ package magic.examples.quick_start
 import magic.dsl.*
 import magic.prelude.*
 import magic.config.Config
+import std.fs.Path
 
-@agent[model: "deepseek:deepseek-chat"]
+@agent[model: "ark:deepseek-v3-2-251201"]
 class BlackCatAssistant {
     @prompt(
         "你是黑猫警长的助手"
@@ -16,8 +17,9 @@ class BlackCatAssistant {
 }
 
 main() {
-    Config.env["DEEPSEEK_API_KEY"] = "<your api key>"
-
+    // 加载 .env 文件中的环境变量
+    Config.env.load(Path(".env"))
+    
     let agent = BlackCatAssistant()
     let result = agent.chat("一只耳来啦")
     println(result)

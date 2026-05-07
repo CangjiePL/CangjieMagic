@@ -144,11 +144,11 @@ extend<T> ArrayList<T> <: FromJsonValue<ArrayList<T>> where T <: FromJsonValue<T
 
 extend<T> ArrayList<T> <: ToJsonValue where T <: ToJsonValue {
     public func toJsonValue(): JsonValue {
-        return JsonArray(
-            this.iterator() |>
-            map { value: T => value.toJsonValue() } |>
-            collectArray
-        )
+        let values = ArrayList<JsonValue>()
+        for (value in this) {
+            values.add(value.toJsonValue())
+        }
+        return JsonArray(collectArray(values))
     }
 }
 

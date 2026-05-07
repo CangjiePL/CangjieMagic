@@ -3,16 +3,12 @@
  */
 package magic.utils
 
-import std.fs.{File, Path, Directory, FileInfo}
-
-@When[cjc_version >= "1.0.0"]
-import std.fs.OpenMode
+import std.fs.{File, Path, Directory, FileInfo, OpenMode}
 
 import std.collection.*
+import std.fs.{exists as fs_exists, removeIfExists as fs_removeIfExists, canonicalize as fs_canonicalize, rename}
 @When[cjc_version >= "1.0.0"]
-public import std.fs.{exists, removeIfExists, canonicalize, rename}
-@When[cjc_version >= "1.0.0"]
-public import std.io.readToEnd
+import std.io.readToEnd
 
 import std.io.{StringReader, StringWriter, IOException}
 
@@ -31,92 +27,117 @@ protected func saveTempFile(tempDir: String, content: String): Path {
     return tempFile.info.path
 }
 
-@When[cjc_version < "1.0.0"]
-protected func readToEnd(file: File): Array<Byte> {
-    return file.readToEnd()
-}
+// @When[cjc_version < "1.0.0"]
+// protected func readToEnd(file: File): Array<Byte> {
+//     return file.readToEnd()
+// }
 
-@When[cjc_version < "1.0.0"]
-protected func exists(path: String): Bool {
-    return File.exists(path) || Directory.exists(path)
-}
+// @When[cjc_version < "1.0.0"]
+// protected func exists(path: String): Bool {
+//     return File.exists(path) || Directory.exists(path)
+// }
 
-@When[cjc_version < "1.0.0"]
-protected func exists(path: Path): Bool {
-    return File.exists(path) || Directory.exists(path)
-}
+// @When[cjc_version < "1.0.0"]
+// protected func exists(path: Path): Bool {
+//     return File.exists(path) || Directory.exists(path)
+// }
 
-@When[cjc_version < "1.0.0"]
-protected func removeIfExists(path: Path): Unit {
-    if (File.exists(path)) {
-        File.delete(path)
-    } else if (Directory.exists(path)) {
-        Directory.delete(path)
-    }
-}
+// @When[cjc_version < "1.0.0"]
+// protected func removeIfExists(path: Path): Unit {
+//     if (File.exists(path)) {
+//         File.delete(path)
+//     } else if (Directory.exists(path)) {
+//         Directory.delete(path)
+//     }
+// }
 
-@When[cjc_version < "1.0.0"]
-protected func removeIfExists(path: String): Unit {
-    removeIfExists(Path(path))
-}
+// @When[cjc_version < "1.0.0"]
+// protected func removeIfExists(path: String): Unit {
+//     removeIfExists(Path(path))
+// }
 
-@When[cjc_version < "1.0.0"]
-protected func fileNameWithoutExt(path: Path): String {
-    return path.fileNameWithoutExtension ?? ""
-}
+// @When[cjc_version < "1.0.0"]
+// protected func fileNameWithoutExt(path: Path): String {
+//     return path.fileNameWithoutExtension ?? ""
+// }
 
-@When[cjc_version >= "1.0.0"]
-protected func fileNameWithoutExt(path: Path): String {
+public func fileNameWithoutExt(path: Path): String {
     return path.fileNameWithoutExtension
 }
 
-@When[cjc_version < "1.0.0"]
-protected func fileExt(path: Path): String {
-    return path.extensionName ?? ""
-}
+// @When[cjc_version < "1.0.0"]
+// protected func fileExt(path: Path): String {
+//     return path.extensionName ?? ""
+// }
 
-@When[cjc_version >= "1.0.0"]
-protected func fileExt(path: Path): String {
+public func fileExt(path: Path): String {
     return path.extensionName
 }
 
-@When[cjc_version < "1.0.0"]
-protected func isRegularFile(fileInfo: FileInfo): Bool {
-    return fileInfo.isFile()
-}
+// @When[cjc_version < "1.0.0"]
+// protected func isRegularFile(fileInfo: FileInfo): Bool {
+//     return fileInfo.isFile()
+// }
 
-@When[cjc_version >= "1.0.0"]
-protected func isRegularFile(fileInfo: FileInfo): Bool {
+public func isRegularFile(fileInfo: FileInfo): Bool {
     return fileInfo.isRegular()
 }
 
-@When[cjc_version < "1.0.0"]
-protected func canonicalize(path: Path): Path {
-    return path.toCanonical()
-}
+// @When[cjc_version < "1.0.0"]
+// protected func canonicalize(path: Path): Path {
+//     return path.toCanonical()
+// }
 
-@When[cjc_version < "1.0.0"]
-protected func directoryOf(path: Path): Path {
-    return path.directoryName ?? Path("")
-}
+// @When[cjc_version < "1.0.0"]
+// protected func directoryOf(path: Path): Path {
+//     return path.directoryName ?? Path("")
+// }
 
-@When[cjc_version >= "1.0.0"]
-protected func directoryOf(path: Path): Path {
+public func directoryOf(path: Path): Path {
     return path.parent
 }
 
-@When[cjc_version < "1.0.0"]
-protected func move(source: Path, to: Path, overwrite: Bool): Unit {
-    if (source.isFile()) {
-        File.move(source, to, overwrite)
-    } else if (source.isDirectory()) {
-        Directory.move(source, to, overwrite)
-    }
-}
+// @When[cjc_version < "1.0.0"]
+// protected func move(source: Path, to: Path, overwrite: Bool): Unit {
+//     if (source.isFile()) {
+//         File.move(source, to, overwrite)
+//     } else if (source.isDirectory()) {
+//         Directory.move(source, to, overwrite)
+//     }
+// }
 
 @When[cjc_version >= "1.0.0"]
 protected func move(source: Path, to: Path, overwrite: Bool): Unit {
     rename(source, to: to, overwrite: overwrite)
+}
+
+/**
+ * Check if a path exists
+ */
+public func exists(path: Path): Bool {
+    return fs_exists(path)
+}
+
+public func exists(path: String): Bool {
+    return fs_exists(Path(path))
+}
+
+/**
+ * Remove file or directory if it exists
+ */
+public func removeIfExists(path: Path): Unit {
+    fs_removeIfExists(path)
+}
+
+public func removeIfExists(path: String): Unit {
+    fs_removeIfExists(Path(path))
+}
+
+/**
+ * Canonicalize a path
+ */
+public func canonicalize(path: Path): Path {
+    return fs_canonicalize(path)
 }
 
 /**
