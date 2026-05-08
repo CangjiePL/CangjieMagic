@@ -17,6 +17,7 @@ import stdx.net.http.{
     HttpRequestBuilder as StdxHttpRequestBuilder,
     HttpResponse as StdxHttpResponse
 }
+import stdx.net.tls.TlsClientConfig
 @When[ohos == "true"]
 import ohos.net.http.*
 
@@ -49,6 +50,20 @@ private func buildRequestOptions(method: String, header: HashMap<String, String>
 }
 
 @When[ohos == "true"]
+private func buildHybridHttpClient(url: String, verify: Bool): StdxHttpClient {
+    let cb = StdxHttpClientBuilder()
+    if (url.startsWith("https")) {
+        var config = TlsClientConfig()
+        if (!verify) {
+            // Keep the default verifier for now. Some Cangjie 1.1.0 SDKs removed
+            // the old TrustAll switch, and setting it here breaks compilation.
+        }
+        cb.tlsConfig(config)
+    }
+    return cb.build()
+}
+
+@When[ohos == "true"]
 private func prepareHttpRequest(method: String,
                                 url: String,
                                 header: HashMap<String, String>,
@@ -74,13 +89,15 @@ private func sendHttp(method: String,
                       header: HashMap<String, String>,
                       body: Option<JsonObject>,
                       verify: Bool): (StdxHttpClient, StdxHttpResponse) {
-    let client = StdxHttpClientBuilder().build()
+    let client = buildHybridHttpClient(url, verify)
     let req = prepareHttpRequest(method, url, header, body)
     try {
         return (client, client.send(req))
     } catch (ex: Exception) {
         client.close()
         LogUtils.error("Http ${url} with data: ${(body ?? JsonObject()).toJsonString()} failed")
+        LogUtils.error("HTTP hybrid send failed: ${ex.message}")
+        LogUtils.error(ex.toString())
         LogUtils.debug(ex)
         throw HttpException(ex.message)
     }
