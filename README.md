@@ -16,6 +16,7 @@
 <!-- code_chunk_output -->
 
 - [Cangjie Magic: Make Apps Grow Intelligence and Creativity](#cangjie-magic-make-apps-grow-intelligence-and-creativity)
+  - [核心特性 ✨ / Key Features](#核心特性--key-features)
   - [Hello Example](#hello-example)
   - [Install 🔨](#install-)
   - [Tutorial 📚](#tutorial-)
@@ -26,6 +27,41 @@
   - [重要变更/Import Changes](#重要变更import-changes)
 
 <!-- /code_chunk_output -->
+
+## 核心特性 ✨ / Key Features
+
+Cangjie Magic 是一个面向 LLM Agent 应用开发的仓颉原生框架。它把 Agent 定义、提示词、工具调用、模型接入、RAG、多 Agent 协作和 MCP 集成封装为仓颉 DSL 与运行时 API，帮助开发者用更少样板代码构建可执行、可组合、可扩展的智能应用。
+
+Cangjie Magic is a Cangjie-native framework for building LLM Agent applications. It provides DSLs and runtime APIs for agent definition, prompting, tool calling, model integration, RAG, multi-agent collaboration, and MCP integration.
+
+**Feature Index**
+
+- Agent 编程模型：仓颉原生 Agent DSL、快捷 AI 函数
+- 工具与外部系统：工具调用、Toolset、MCP Client/Server
+- 执行与编排：内置执行器、规划 DSL、多 Agent 协作
+- 知识增强：RAG、语义检索、向量数据库
+- 模型生态：多模型服务商接入、Chat/Embedding/Image 模型
+- 人机协同：Human-in-the-Loop、事件处理、执行观察
+- 开发者体验：示例、教程、API 文档
+
+| 特性 / Feature | 说明 / Description |
+|---|---|
+| 仓颉原生 Agent DSL <br/> Cangjie-native Agent DSL | 使用 `@agent`、`@prompt`、`@tool`、`@toolset` 等宏定义 Agent、系统提示词和工具。DSL 基于仓颉元编程机制实现，最终转换为普通仓颉代码并由仓颉编译器编译。<br/> Define agents, system prompts, and tools with macros such as `@agent`, `@prompt`, `@tool`, and `@toolset`. |
+| 快捷 AI 函数 <br/> AI functions | 使用 `@ai` 修饰 `foreign func`，把 LLM 能力直接暴露为类型化函数。函数参数和返回值满足 `Jsonable` 即可参与模型调用，也可以配置模型、提示词和工具。<br/> Use `@ai` on `foreign func` to expose LLM capabilities as typed functions with optional prompts, models, and tools. |
+| 工具调用与 MCP 集成 <br/> Tools and MCP integration | 工具可以来自全局函数、Agent 成员方法、`Toolset`，也可以来自 MCP Server。支持 `stdioMCP`、`sseMCP`、`httpMCP`，并支持把本地 Agent 或工具暴露为 MCP Server。<br/> Tools can be local functions, agent methods, toolsets, or remote MCP tools over stdio, SSE, or HTTP. |
+| 多种执行器与规划 DSL <br/> Executors and planning DSL | 内置 `naive`、`react`、`tool-loop` 执行器；`react`/`tool-loop` 支持最大迭代次数配置。实验性的 `@execution` DSL 支持组合 `plan`、`think`、`action`、`repeat`、`answer` 等执行步骤。<br/> Built-in executors cover direct Q&A, ReAct-style loops, and tool loops; the experimental execution DSL enables custom planning flows. |
+| RAG 与语义检索 <br/> RAG and semantic retrieval | 支持在 `@agent` 中配置外部知识源，并提供 embedding、向量数据库、索引映射、`SemanticMap`、`SemanticSet` 等语义检索组件。向量数据库支持内存实现和 Faiss。<br/> Configure external knowledge sources for agents and use semantic retrieval primitives including embeddings, vector databases, and semantic collections. |
+| 多模型服务商接入 <br/> Multi-provider model support | 统一使用 `<provider>:<model>` 配置模型，支持 OpenAI、DeepSeek、DashScope、火山方舟、Ollama、Llama.cpp、Anthropic、SiliconFlow、智谱 AI、Google、Moonshot、OpenRouter 等服务商，并支持注册自定义模型。<br/> Configure models with `<provider>:<model>`, use multiple chat/embedding/image providers, or register custom model implementations. |
+| 多 Agent 协作 <br/> Multi-agent collaboration | 支持线性协同 `ag1 |> ag2`、主从协同 `leader <= [worker]`、自由讨论 `ag1 \| ag2`，并支持把 AgentGroup 作为子组组合到更复杂流程中。<br/> Compose agents through linear pipelines, leader-worker groups, free discussion groups, and nested subgroups. |
+| Human-in-the-Loop | 提供事件处理和交互机制，允许开发者在 Agent 执行过程中观察、拦截或接入人工反馈，适合审批、调试和敏感工具调用场景。<br/> Intercept and interact with agent execution through event handlers for approval, debugging, and human feedback. |
+| 示例和文档完善 <br/> Examples and documentation | `src/examples` 提供 quick start、Markdown QA、文档翻译、文件助手、MCP server/client 等示例；`docs/` 提供安装、教程、HITL 和 API 文档。<br/> Example applications and documentation cover quick start, RAG Q&A, document translation, file assistants, MCP servers/clients, HITL, and API references. |
+
+相关入口 / Useful entry points:
+
+- [用户教程 / Tutorial](./docs/tutorial.md)
+- [Human-in-the-Loop Tutorial](./docs/hitl.md)
+- [API Manual](./docs/api_reference.md)
+- [Examples](./src/examples)
 
 ## Hello Example
 
