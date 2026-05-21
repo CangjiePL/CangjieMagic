@@ -13,6 +13,14 @@
     - [func removeLastMessage](#func-removelastmessage)
     - [prop retrievalInfo](#prop-retrievalinfo)
     - [func setAnswer](#func-setanswer)
+  - [Skill built-in tools](#skill-built-in-tools)
+    - [class SkillTool](#class-skilltool)
+    - [class ListDirectoryTool](#class-listdirectorytool)
+    - [class FileReadTool](#class-filereadtool)
+    - [class GlobSearchTool](#class-globsearchtool)
+    - [class GrepSearchTool](#class-grepsearchtool)
+    - [class ShellExecuteTool](#class-shellexecutetool)
+    - [struct SkillToolsBuilder](#struct-skilltoolsbuilder)
 
 ### class AgentExecutionInfo
 #### func addMessage
@@ -100,4 +108,103 @@ func setAnswer(answer: String): Unit
 - Parameters:
   - `answer`: `String`, The answer to be set.
 
+
+### Skill built-in tools
+
+These tools are auto-injected by the `@agent` macro **only when the `skillRoot`
+attribute is set**. `skillRoot` defaults to `None`; with the default, none of
+these tools are added to the agent and `skillBuiltinTools` is ignored. When
+`skillRoot` is set, `SkillTool` (the `runSkill` tool) is always added, and the
+five general-purpose tools below are added when `skillBuiltinTools` is left
+at its default of `true`. To use these tools without enabling the skill
+system you would need to instantiate them directly and add them via
+`agent.toolManager.addTool(...)`. See the [skill](./skill.md) package for the
+underlying loader and the `dsl` doc for the `@agent` attributes that drive
+injection.
+
+When a user-supplied tool has the same name as a built-in, the user tool wins
+(built-ins are added first, then overwritten by name). `SkillToolsBuilder`
+logs a status line at agent construction so silent overrides are visible.
+
+#### class SkillTool
+```
+public class SkillTool <: NativeFuncTool {
+    public init(skillManager: SkillManager)
+}
+```
+- Tool name: `runSkill`.
+- Description: Loads the body of a skill and returns it so the agent can
+  follow the skill's instructions. Parameters: `name: String` — the name
+  of the skill to load.
+
+#### class ListDirectoryTool
+```
+public class ListDirectoryTool <: NativeFuncTool {
+    public init()
+}
+```
+- Tool name: `listDirectory`.
+- Description: Lists the entries of an absolute directory path. Directories
+  are suffixed with `/`. Relative paths are rejected.
+
+#### class FileReadTool
+```
+public class FileReadTool <: NativeFuncTool {
+    public init()
+}
+```
+- Tool name: `fileRead`.
+- Description: Reads a file at an absolute path and returns its contents
+  wrapped in a `<file-content>` block. Optional `startLine` / `endLine`
+  parameters narrow the result to a 1-based inclusive line range.
+
+#### class GlobSearchTool
+```
+public class GlobSearchTool <: NativeFuncTool {
+    public init()
+}
+```
+- Tool name: `globSearch`.
+- Description: Recursively finds files matching a glob `pattern` under an
+  absolute `path`. Skips common build/VCS directories (`.git`,
+  `node_modules`, `target`, `build`, `dist`, `.cache`).
+
+#### class GrepSearchTool
+```
+public class GrepSearchTool <: NativeFuncTool {
+    public init()
+}
+```
+- Tool name: `grepSearch`.
+- Description: Searches file contents for a regex `pattern` under an
+  absolute `path`. Supports an optional `fileType` glob filter.
+
+#### class ShellExecuteTool
+```
+public class ShellExecuteTool <: NativeFuncTool {
+    public init()
+}
+```
+- Tool name: `shellExecute`.
+- Description: Runs a shell command (PowerShell on Windows, `/bin/sh`
+  elsewhere). Optional `workDir` must be an absolute path. Output is
+  truncated to ~30 KB per stream; default timeout is 180 s (max 600 s).
+
+#### struct SkillToolsBuilder
+```
+public struct SkillToolsBuilder {
+    public static func build(skillManager: SkillManager,
+                             builtinEnabled!: Bool): Array<Tool>
+    public static func computeSkillToolStatus(tm: ToolManager,
+                                              builtinEnabled: Bool): Array<String>
+    public static func logSkillToolStatus(agentName: String,
+                                          tm: ToolManager,
+                                          builtinEnabled: Bool): Unit
+}
+```
+- Description: Builds and reports on the skill built-in tool set.
+- `build` returns `[SkillTool]` when `builtinEnabled` is `false`, otherwise
+  `SkillTool` plus the five general-purpose tools above.
+- `computeSkillToolStatus` returns the status messages that
+  `logSkillToolStatus` writes at INFO level — useful in tests.
 

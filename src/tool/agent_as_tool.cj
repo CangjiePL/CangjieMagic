@@ -64,6 +64,10 @@ public class AgentAsTool <: AbsTool {
         this.mode = mode
     }
 
+    public prop innerAgent: Agent {
+        get() { this.agent }
+    }
+
     public prop name: String {
         get() { this.agent.name }
     }

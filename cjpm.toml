@@ -55,6 +55,8 @@
   output-type = "executable"
 [package.package-configuration."magic.examples.magic_agent"]
   output-type = "executable"
+[package.package-configuration."magic.examples.skill_test"]
+  output-type = "executable"
 
 #----------------------------------------
 #  Setting FFI libs

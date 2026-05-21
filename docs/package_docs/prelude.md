@@ -22,6 +22,8 @@ It currently re-exports these Cangjie Magic packages:
 - `magic.tool.{SimpleToolManager, NativeFuncTool}`
 - `magic.mcp.*`
 - `magic.agent_executor.dsl.{ExecutionDSL, ExecutionState}`
+- `magic.skill.{SkillManager, SkillPrompt}`
+- `magic.agent_executor.common.{SkillTool, SkillToolsBuilder, ListDirectoryTool, FileReadTool, GlobSearchTool, GrepSearchTool, ShellExecuteTool}`
 
 It also re-exports these standard-library symbols for common workflows:
 

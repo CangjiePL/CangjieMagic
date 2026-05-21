@@ -18,6 +18,10 @@ NOTE: This file is translated from `tutorial.md` by the `doc_translator` agent.
     - [Writing Tool Functions](#writing-tool-functions)
     - [Using Tools and MCP Servers](#using-tools-and-mcp-servers)
     - [Additional Tool Property Settings](#additional-tool-property-settings)
+  - [Skills](#skills)
+    - [Skill Folder Layout](#skill-folder-layout)
+    - [Attaching a Skill Root to an Agent](#attaching-a-skill-root-to-an-agent)
+    - [Skill Built-in Tools](#skill-built-in-tools)
   - [Planning](#planning)
     - [Agent Execution DSL (Experimental)](#agent-execution-dsl-experimental)
   - [External Knowledge](#external-knowledge)
@@ -83,6 +87,8 @@ The `@agent` macro supports the following attributes. For specific attributes, r
 | `executor` | `String` | Planning mode; defaults to `react` |
 | `temperature` | `Float` | The temperature value when the Agent uses the LLM; defaults to `0.5` |
 | `enableToolFilter` | `Bool` | Enables tool filtering functionality; the Agent will automatically select appropriate tools based on the input question before execution; defaults to `false` |
+| `skillRoot` | `String` or expression | Path to a directory of skills the Agent may load on demand. Accepts a string literal or a runtime expression. Defaults to `None`; with the default, the skill feature is fully disabled and no skill tools are injected. When set, the Agent gets a `skillManager` property, the skill instructions block is appended to the system prompt, and the `runSkill` tool is injected automatically. See [Skills](#skills). |
+| `skillBuiltinTools` | `Bool` or expression | When `skillRoot` is set, controls whether the general-purpose file/shell helpers (`listDirectory`, `fileRead`, `globSearch`, `grepSearch`, `shellExecute`) are injected alongside `runSkill`. Accepts a literal `true`/`false` or a runtime `Bool` expression; defaults to `true`. Ignored when `skillRoot` is `None`. |
 | `dump` | `Bool` | For debugging purposes, whether to print the transformed AST of the Agent; defaults to `false` |
 
 ## Writing Prompts
@@ -629,6 +635,119 @@ let tool: Tool = getSomeTool()
 tool.extra["filterable"] = "false"
 tool.extra["terminal"] = "true"
 ```
+
+## Skills
+
+A *skill* is a folder of instructions, scripts, and resources the Agent can
+load on demand. Instead of stuffing every domain workflow into the system
+prompt, you put each workflow in its own folder under a *skill root* and let
+the Agent decide which one to invoke. At runtime the Agent sees a short
+listing of every available skill; when it picks one, it calls the `runSkill`
+tool with the skill name and the full body of `SKILL.md` is appended to the
+conversation.
+
+### Skill Folder Layout
+
+```
+skills/
+  pdf/
+    SKILL.md          # YAML frontmatter + markdown instructions
+    scripts/
+      extract.py
+  xlsx/
+    SKILL.md
+    data/
+      template.xlsx
+```
+
+Each `SKILL.md` starts with YAML frontmatter and is followed by markdown
+instructions:
+
+```markdown
+---
+name: pdf
+description: Extract text from PDF files. Use this whenever the user asks to read or summarize a PDF.
+---
+# pdf Skill
+
+1. Use `shellExecute` to run `python scripts/extract.py <path>`.
+2. Return the extracted text.
+```
+
+Required fields: `name` (matches the folder name, max 64 chars, no leading or
+consecutive `-`) and `description` (non-empty, max 1024 chars). Optional
+fields: `license`, `compatibility`, `metadata`, `allowed_tools`.
+
+### Attaching a Skill Root to an Agent
+
+`skillRoot` defaults to `None`. With the default, the skill feature is fully
+disabled: no `skillManager` property is generated, nothing is appended to the
+system prompt, and **no skill tools are injected — neither `runSkill` nor the
+file/shell built-ins**. In that case, `skillBuiltinTools` is ignored.
+
+To enable skills, point `@agent` at the skill root with `skillRoot`. The macro
+will:
+
+1. Build a `SkillManager` over that directory at first use.
+2. Append a Skill System prompt block (usage rules + an `<available_skills>`
+   listing with names, descriptions, locations, and per-skill directory
+   structure) to the Agent's system prompt.
+3. Inject the `runSkill` tool, plus by default a set of general-purpose
+   file/shell helpers (see below).
+
+```cangjie
+@agent[
+    model: "deepseek:deepseek-chat",
+    executor: "tool-loop",
+    skillRoot: "./skills"
+]
+class SkillfulAgent {
+    @prompt("You are a careful assistant. Use the available skills when relevant.")
+}
+```
+
+`skillRoot` also accepts an expression — for example `skillRoot: somePath`
+when the path is computed at runtime.
+
+### Skill Built-in Tools
+
+When `skillRoot` is set, the macro injects these tools:
+
+| Tool | Description |
+|---|---|
+| `runSkill` | Loads a skill body by name and returns it to the model. Always injected. |
+| `listDirectory` | Lists entries of an absolute directory path. |
+| `fileRead` | Reads a file at an absolute path; optional 1-based `startLine`/`endLine`. |
+| `globSearch` | Recursively matches files against a glob pattern. |
+| `grepSearch` | Regex search across file contents, with optional `fileType` filter. |
+| `shellExecute` | Runs a shell command (PowerShell on Windows, `/bin/sh` elsewhere) with optional `workDir` and `timeoutMs`. |
+
+The five general-purpose tools can be disabled with `skillBuiltinTools:
+false`, in which case only `runSkill` is added. Like `skillRoot`,
+`skillBuiltinTools` also accepts a runtime expression — for example
+`skillBuiltinTools: config.skillBuiltinTools` to drive it from configuration.
+`skillBuiltinTools` only takes effect when `skillRoot` is set; if you omit
+`skillRoot`, none of these tools are injected regardless of
+`skillBuiltinTools`.
+
+```cangjie
+@agent[
+    model: "deepseek:deepseek-chat",
+    skillRoot: "./skills",
+    skillBuiltinTools: false   // only runSkill will be injected
+]
+class MinimalSkillAgent {
+    @prompt("...")
+}
+```
+
+If you supply a tool with the same name as a built-in (for example, your own
+`fileRead`), your tool wins the collision — built-ins are added first and
+then overwritten by name. The macro logs a status line at agent
+construction so silent overrides are visible. See the
+[skill](./package_docs/skill.md) and
+[agent_executor.common](./package_docs/agent_executor.common.md) package
+docs for the underlying API.
 
 ## Planning
 

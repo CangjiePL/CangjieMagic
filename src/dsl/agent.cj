@@ -174,6 +174,16 @@ private enum ModelAttr {
     | Expr(Tokens)
 }
 
+private enum SkillRootAttr {
+    | Literal(String)
+    | Expr(Tokens)
+}
+
+private enum SkillBuiltinToolsAttr {
+    | Literal(Bool)
+    | Expr(Tokens)
+}
+
 private class AgentAttr <: Attr {
     private static let ATTR_NAMES = [
         "model",
@@ -184,6 +194,8 @@ private class AgentAttr <: Attr {
         "memory",
         "tools",
         "enableToolFilter",
+        "skillRoot",
+        "skillBuiltinTools",
         "dump"
     ]
 
@@ -298,6 +310,50 @@ private class AgentAttr <: Attr {
     prop enableToolFilter: Bool {
         get() { getBool("enableToolFilter") }
     }
+    
+    prop skillRoot: ?SkillRootAttr {
+        get() {
+            try {
+                if (let Some(v) <- getString("skillRoot")) {
+                    return SkillRootAttr.Literal(v)
+                }
+            } catch (_: DslException) {
+                // Value is not a string literal, skip the exception
+            }
+
+            if (let Some(expr) <- getTokens("skillRoot")) {
+                SkillRootAttr.Expr(expr)
+            } else {
+                None
+            }
+        }
+    }
+
+    /**
+     * Accepts a literal `true`/`false` or an arbitrary Bool expression
+     * (e.g. `skillBuiltinTools: config.skillBuiltinTools`). Defaults to
+     * a literal `true` when omitted.
+     */
+    prop skillBuiltinTools: SkillBuiltinToolsAttr {
+        get() {
+            match (getTokens("skillBuiltinTools")) {
+                case Some(tokens) =>
+                    // Present: a single `true`/`false` token is a literal,
+                    // anything else is treated as a runtime expression.
+                    try {
+                        match (getLiteral("skillBuiltinTools")) {
+                            case Some("true") => SkillBuiltinToolsAttr.Literal(true)
+                            case Some("false") => SkillBuiltinToolsAttr.Literal(false)
+                            case _ => SkillBuiltinToolsAttr.Expr(tokens)
+                        }
+                    } catch (_: DslException) {
+                        // getLiteral throws when the value is not a single token
+                        SkillBuiltinToolsAttr.Expr(tokens)
+                    }
+                case None => SkillBuiltinToolsAttr.Literal(true)
+            }
+        }
+    }
 
     let internalTools = ArrayList<String>()
 }
@@ -390,6 +446,7 @@ private func transformAgentClass(classDecl: ClassDecl, agentAttr: AgentAttr): To
         $modifier class $classNameToken $genericTypeParamTokens $genericConstraintTokens <: UserDefinedAgent {
             $classDeclBody
             public static let typeName = $( newLiteralToken(classDecl.identifier.value) )
+            $( buildAgentSkillManagerProp(agentAttr) )
             $( buildAgentSystemPromptProp(classDecl, agentAttr) )
             $( buildAgentModelProp(agentAttr) )
             $( buildAgentExecutorProp(agentAttr) )
@@ -406,6 +463,36 @@ private func transformAgentClass(classDecl: ClassDecl, agentAttr: AgentAttr): To
 
 //=============================================================================
 
+private func buildAgentSkillManagerProp(agentAttr: AgentAttr): Tokens {
+    if (agentAttr.skillRoot.isNone()) {
+        return Tokens()
+    }
+
+    let skillRootTokens = match(agentAttr.skillRoot.getOrThrow()) {
+        case SkillRootAttr.Literal(v) => quote($(newLiteralToken(v)))
+        case SkillRootAttr.Expr(expr) => expr
+        // case None => return Tokens()
+    } 
+    
+    return quote(
+        private var __SKILL_MANAGER__: Option<SkillManager> = None
+        public prop skillManager: SkillManager {
+            get() {
+                match (__SKILL_MANAGER__) {
+                    case Some(sm) => return sm
+                    case None =>
+                        // Initialize skill manager from custom location
+                        let sm = SkillManager($skillRootTokens)
+                        __SKILL_MANAGER__ = Some(sm)
+                        return sm
+                }
+            }
+        }
+    )
+}
+
+//=============================================================================
+
 private func buildAgentSystemPromptProp(classDecl: ClassDecl, agentAttr: AgentAttr) {
     if (!agentAttr.hasPrompt) {
         return quote (
@@ -416,6 +503,17 @@ private func buildAgentSystemPromptProp(classDecl: ClassDecl, agentAttr: AgentAt
             }
         )
     }
+    
+    // Add skill instructions if enabled
+    let skillPromptCode = if (agentAttr.skillRoot.isSome()) {
+        quote(
+            // Add skill instructions to system prompt
+            __SYSTEM_PROMPT__ += "\n\n" + SkillPrompt.getSkillInstructions(this.skillManager)
+        )
+    } else {
+        Tokens()
+    }
+    
     return quote(
         private var __SYSTEM_PROMPT__: String = ""
         private var __IS_SYSTEM_PROMPT_INIT__ = false
@@ -427,6 +525,7 @@ private func buildAgentSystemPromptProp(classDecl: ClassDecl, agentAttr: AgentAt
                 }
                 __IS_SYSTEM_PROMPT_INIT__ = true
                 __SYSTEM_PROMPT__ = $(newIdentifierToken(SYSTEM_PROMPT_FUNC))()
+                $skillPromptCode
                 return __SYSTEM_PROMPT__
             }
             set(v) {
@@ -736,6 +835,38 @@ private func buildAgentToolManagerProp(classDecl: ClassDecl, agentAttr: AgentAtt
         }
     }
 
+    // Add skill tools (runSkill + general-purpose file/shell built-ins) if enabled.
+    // Built-ins go *before* user tools so user tools win same-name collisions via
+    // SimpleToolManager.addTool's overwrite semantics.
+    // `skillBuiltinTools` may be a literal Bool or a runtime Bool expression;
+    // evaluate it once into __SKILL_BUILTIN_ENABLED__ so the status-log call
+    // below reuses the same value (no double evaluation of an expression).
+    let skillToolsCode = if (agentAttr.skillRoot.isSome()) {
+        let builtinEnabled = match (agentAttr.skillBuiltinTools) {
+            case SkillBuiltinToolsAttr.Literal(b) => quote($(newLiteralToken(b)))
+            case SkillBuiltinToolsAttr.Expr(expr) => expr
+        }
+        quote(
+            let __SKILL_BUILTIN_ENABLED__: Bool = $builtinEnabled
+            for (tool in SkillToolsBuilder.build(this.skillManager, builtinEnabled: __SKILL_BUILTIN_ENABLED__)) {
+                tm.addTool(tool)
+            }
+        )
+    } else {
+        Tokens()
+    }
+
+    // After both built-ins and user tools have been added, log a status line:
+    // whether built-ins were turned on, and whether any of them got silently
+    // shadowed by a user-supplied tool with the same name.
+    let skillStatusLog = if (agentAttr.skillRoot.isSome()) {
+        quote(
+            SkillToolsBuilder.logSkillToolStatus(this.name, tm, __SKILL_BUILTIN_ENABLED__)
+        )
+    } else {
+        Tokens()
+    }
+
     return quote(
         private var __TOOL_MANAGER__: Option<ToolManager> = None
         public override prop toolManager: ToolManager {
@@ -745,7 +876,9 @@ private func buildAgentToolManagerProp(classDecl: ClassDecl, agentAttr: AgentAtt
                     case None =>
                         let tm = SimpleToolManager([], enableFilter: $(newLiteralToken(agentAttr.enableToolFilter)))
 
+                        $skillToolsCode
                         $addTools
+                        $skillStatusLog
 
                         __TOOL_MANAGER__ = Some(tm)
                         return tm
