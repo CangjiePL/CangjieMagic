@@ -16,6 +16,10 @@
     - [工具函数编写](#工具函数编写)
     - [使用工具和 MCP 服务器](#使用工具和-mcp-服务器)
     - [工具额外属性设置](#工具额外属性设置)
+  - [技能（Skills）](#技能skills)
+    - [技能目录结构](#技能目录结构)
+    - [为 Agent 配置技能根目录](#为-agent-配置技能根目录)
+    - [技能内置工具](#技能内置工具)
   - [规划](#规划)
     - [Agent 执行 DSL（实验）](#agent-执行-dsl实验)
   - [外部知识](#外部知识)
@@ -80,6 +84,8 @@ Cangjie Agent DSL 被设计为仓颉语言的 eDSL，即在仓颉语言中通过
 | `executor` | `String` | 规划模式；默认为 `react` |
 | `temperature` | `Float` | Agent 使用 LLM 时的 temperature 值；默认为 `0.5` |
 | `enableToolFilter` | `Bool` | 启用工具过滤功能，Agent 在执行前会自动根据输入问题选择合适的工具集合；默认 `false` |
+| `skillRoot` | `String` 或表达式 | 技能目录的路径。Agent 可按需加载该目录下的技能。可以是字符串字面量，也可以是运行时求值的表达式。默认值为 `None`；保持默认时，技能功能完全关闭，不会注入任何技能工具。设置后，Agent 会获得 `skillManager` 属性，技能说明会自动附加到系统提示词中，并自动注入 `runSkill` 工具。详见[技能（Skills）](#技能skills)。 |
+| `skillBuiltinTools` | `Bool` 或表达式 | 当设置了 `skillRoot` 时，是否同时注入通用的文件/Shell 工具（`listDirectory`、`fileRead`、`globSearch`、`grepSearch`、`shellExecute`），与 `runSkill` 一起提供。可以是字面量 `true`/`false`，也可以是运行时求值的 `Bool` 表达式；默认 `true`。当 `skillRoot` 为 `None` 时此属性被忽略。 |
 | `dump` | `Bool` | 调试代码用，是否打印 Agent 变换后的 AST；默认为 `false` |
 
 ## 编写提示词
@@ -628,6 +634,111 @@ let tool: Tool = getSomeTool()
 tool.extra["filterable"] = "false"
 tool.extra["terminal"] = "true"
 ```
+
+## 技能（Skills）
+
+**技能（Skill）**是一个独立的文件夹，包含说明文档、脚本和资源文件。Agent
+可按需加载使用，无需把所有领域工作流都塞进系统提示词。每个技能放在一个
+*技能根目录*下的子文件夹中。运行时 Agent 会看到所有可用技能的简要清单；
+当它选择某个技能时，会调用 `runSkill` 工具，并把该技能的 `SKILL.md` 正文
+追加到对话上下文中。
+
+### 技能目录结构
+
+```
+skills/
+  pdf/
+    SKILL.md          # YAML 元信息 + Markdown 指令
+    scripts/
+      extract.py
+  xlsx/
+    SKILL.md
+    data/
+      template.xlsx
+```
+
+每个 `SKILL.md` 以 YAML 元信息开始，后接 Markdown 指令：
+
+```markdown
+---
+name: pdf
+description: 从 PDF 文件中提取文本。每当用户需要阅读或概述 PDF 时使用。
+---
+# pdf 技能
+
+1. 使用 `shellExecute` 运行 `python scripts/extract.py <path>`。
+2. 返回提取出的文本。
+```
+
+必填字段：`name`（与文件夹名相同，最多 64 个字符，不能以 `-` 开头或包含
+`--`）和 `description`（非空，最多 1024 个字符）。可选字段：`license`、
+`compatibility`、`metadata`、`allowed_tools`。
+
+### 为 Agent 配置技能根目录
+
+`skillRoot` 默认值为 `None`。在默认情况下，技能功能完全关闭：不会生成
+`skillManager` 属性，系统提示词中不会追加任何内容，**也不会注入任何技能
+工具 —— `runSkill` 与文件/Shell 内置工具都不会被加入**。此时
+`skillBuiltinTools` 属性会被忽略。
+
+如需启用技能功能，请通过 `@agent` 的 `skillRoot` 属性指向技能根目录。
+设置后，宏会：
+
+1. 在第一次访问时构建一个覆盖该目录的 `SkillManager`。
+2. 把技能说明段（使用规则 + `<available_skills>` 列表，包括每个技能的
+   名称、描述、路径以及目录结构）自动追加到 Agent 系统提示词后面。
+3. 自动注入 `runSkill` 工具，以及（默认情况下）一组通用的文件/Shell
+   辅助工具（详见下文）。
+
+```cangjie
+@agent[
+    model: "deepseek:deepseek-chat",
+    executor: "tool-loop",
+    skillRoot: "./skills"
+]
+class SkillfulAgent {
+    @prompt("你是一个认真的助理，请在合适的时候使用可用技能。")
+}
+```
+
+`skillRoot` 也可接收表达式 —— 比如 `skillRoot: somePath`，用于路径在运行时
+计算的情况。
+
+### 技能内置工具
+
+当设置了 `skillRoot` 时，宏会自动注入以下工具：
+
+| 工具 | 说明 |
+|---|---|
+| `runSkill` | 根据名称加载技能正文并返回给模型。始终被注入。 |
+| `listDirectory` | 列出绝对路径下的目录条目。 |
+| `fileRead` | 读取绝对路径下的文件；可选 1 起始的 `startLine`/`endLine` 行范围。 |
+| `globSearch` | 按 glob 模式递归匹配文件。 |
+| `grepSearch` | 按正则在文件内容中搜索，可选 `fileType` 过滤。 |
+| `shellExecute` | 执行 Shell 命令（Windows 上是 PowerShell，其它系统是 `/bin/sh`），可选 `workDir` 和 `timeoutMs`。 |
+
+通过 `skillBuiltinTools: false` 可关闭后面五个通用工具，这样只会注入
+`runSkill`。与 `skillRoot` 一样，`skillBuiltinTools` 也可接收运行时表达式 ——
+比如 `skillBuiltinTools: config.skillBuiltinTools`，用于从配置驱动该开关。
+`skillBuiltinTools` 仅在设置了 `skillRoot` 时生效；若没有设置 `skillRoot`，
+无论 `skillBuiltinTools` 取什么值，这些工具都不会被注入。
+
+```cangjie
+@agent[
+    model: "deepseek:deepseek-chat",
+    skillRoot: "./skills",
+    skillBuiltinTools: false   // 仅注入 runSkill
+]
+class MinimalSkillAgent {
+    @prompt("...")
+}
+```
+
+若你提供了与内置工具同名的工具（例如自定义的 `fileRead`），你的工具会
+覆盖内置版本 —— 因为内置工具先被加入，然后按名称被覆盖。宏在 Agent
+构造时会打印一行状态日志，使这种静默覆盖可见。底层 API 详见
+[skill](./package_docs/skill.md) 和
+[agent_executor.common](./package_docs/agent_executor.common.md) 包文档。
 
 ## 规划
 

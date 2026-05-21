@@ -13,6 +13,7 @@
   - [How to create custom prompt patterns?](#how-to-create-custom-prompt-patterns)
   - [How to implement tool functions?](#how-to-implement-tool-functions)
   - [How to configure MCP servers?](#how-to-configure-mcp-servers)
+  - [How to use skills?](#how-to-use-skills)
   - [How to use RAG for knowledge enhancement?](#how-to-use-rag-for-knowledge-enhancement)
   - [How to implement multi-Agent collaboration?](#how-to-implement-multi-agent-collaboration)
   - [How to control the loop number of React execution?](#how-to-control-the-loop-number-of-react-execution)
@@ -146,6 +147,50 @@ Connect to external tool servers via MCP protocol:
 ]
 class EnhancedAgent { }
 ```
+
+## How to use skills?
+
+Put each skill in its own folder under a *skill root*, then point `@agent` at
+the root with `skillRoot`. Every folder must contain a `SKILL.md` whose YAML
+frontmatter declares `name` (matching the folder) and `description`.
+
+```
+skills/
+  pdf/
+    SKILL.md
+    scripts/extract.py
+```
+
+```markdown
+---
+name: pdf
+description: Extract text from PDF files. Use when the user asks to read a PDF.
+---
+# pdf Skill
+1. Use `shellExecute` to run `python scripts/extract.py <path>`.
+2. Return the extracted text.
+```
+
+```cangjie
+@agent[
+    model: "deepseek:deepseek-chat",
+    executor: "tool-loop",
+    skillRoot: "./skills"
+]
+class SkillfulAgent {
+    @prompt("Use the available skills when relevant.")
+}
+```
+
+The macro auto-injects the `runSkill` tool, appends an `<available_skills>`
+block to the system prompt, and (by default) also adds the general-purpose
+`listDirectory`, `fileRead`, `globSearch`, `grepSearch`, and `shellExecute`
+tools. Set `skillBuiltinTools: false` to inject only `runSkill`.
+
+If you omit `skillRoot` entirely (the default), none of this happens — the
+skill feature stays off and no skill-related tools are added, regardless of
+`skillBuiltinTools`. See the [Skills](./tutorial-en.md#skills) tutorial
+section for full details.
 
 ## How to use RAG for knowledge enhancement?
 

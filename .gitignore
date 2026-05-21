@@ -19,3 +19,4 @@ venv/
 build-script-cache/
 **/__pycache__/
 src/main*.cj
+references/

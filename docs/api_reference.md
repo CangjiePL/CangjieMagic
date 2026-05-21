@@ -22,6 +22,7 @@ Internal helper packages and provider-specific implementation packages may still
 - 📁 [memory](./package_docs/memory.md)
 - 📁 [parser](./package_docs/parser.md)
 - 📁 [jsonable](./package_docs/jsonable.md)
+- 📁 [skill](./package_docs/skill.md)
 - 📁 [tokenizer](./package_docs/tokenizer.md)
 
 ## Execution Packages

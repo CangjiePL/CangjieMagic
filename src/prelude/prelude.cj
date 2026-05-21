@@ -17,6 +17,12 @@ public import magic.rag.RetrieverUtils
 public import magic.tool.{SimpleToolManager, NativeFuncTool}
 public import magic.mcp.*
 public import magic.agent_executor.dsl.{ExecutionDSL, ExecutionState}
+public import magic.skill.{SkillManager, SkillPrompt}
+public import magic.agent_executor.common.{
+    SkillTool, SkillToolsBuilder,
+    ListDirectoryTool, FileReadTool, GlobSearchTool, GrepSearchTool,
+    ShellExecuteTool
+}
 
 public import stdx.encoding.json.{JsonValue, JsonObject, JsonException, JsonKind, JsonInt, JsonString, JsonBool, JsonFloat, JsonArray, JsonNull}
 public import std.collection.{ArrayList, HashMap}
