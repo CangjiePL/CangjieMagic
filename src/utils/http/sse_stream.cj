@@ -76,33 +76,28 @@ protected class SSEventStream <: Iterator<SSEvent> {
     }
 
     override public func next(): Option<SSEvent> {
-        while (true) {
-            // Receive the pair of event and data
-            let event = if (let Some(sseItem) <- this.sseStream.next()) {
-                if (sseItem.tag != "event") {
-                    throw HttpException("Invalid SSE event: `${sseItem}`")
-                }
-                sseItem.content
-            } else {
-                LogUtils.trace("SSE stream finished")
-                return None
+        var event = "message"
+        let data = StringBuilder()
+        var hasData = false
+        while (let Some(sseItem) <- this.sseStream.next()) {
+            match (sseItem.tag) {
+                case "event" =>
+                    event = sseItem.content
+                case "data" =>
+                    if (hasData) {
+                        data.append("\n")
+                    }
+                    data.append(sseItem.content)
+                    hasData = true
+                    LogUtils.trace("SSE stream read data: ${sseItem.content}")
+                    return SSEvent(event, data.toString())
+                case _ =>
+                    throw HttpException("Invalid SSE item: `${sseItem}`")
             }
             LogUtils.trace("SSE stream read event: ${event}")
-
-            let data = if (let Some(sseItem) <- this.sseStream.next()) {
-                if (sseItem.tag != "data") {
-                    throw HttpException("Invalid SSE data: `${sseItem}`")
-                }
-                sseItem.content
-            } else {
-                LogUtils.trace("SSE stream finished")
-                return None
-            }
-            LogUtils.trace("SSE stream read data: ${data}")
-
-            return SSEvent(event, data)
         }
-        throw UnsupportedException("Unreachable")
+        LogUtils.trace("SSE stream finished")
+        return None
     }
 
     public func close(): Unit {

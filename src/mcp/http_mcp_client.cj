@@ -86,7 +86,7 @@ public class HttpMCPClient <: AbsMCPClient {
             this.messageQueue.add(body)
         } else if (let HttpResultOption.Stream(stream) <- result.value) {
             // SSE stream response
-            this.handleSSEStream(SSEventStream(stream))
+            this.handleSSEStream(req, SSEventStream(stream))
         }
 
         return true
@@ -172,14 +172,48 @@ public class HttpMCPClient <: AbsMCPClient {
         this.messageQueue.clear()
     }
 
-    private func handleSSEStream(stream: SSEventStream): Unit {
+    private func handleSSEStream(req: JsonObject, stream: SSEventStream): Unit {
+        let requestId = this.extractRequestId(req)
         while (let Some(event) <- stream.next()) {
-            if (event.event == "message") {
-                this.messageQueue.add(event.data)
-            } else if (event.event == "error") {
+            if (event.event == "error") {
                 LogUtils.error("SSE error: ${event.data}")
+                continue
+            }
+
+            if (event.event == "message" || event.event.isEmpty()) {
+                if (this.isResponseForRequest(event.data, requestId)) {
+                    this.messageQueue.add(event.data)
+                    stream.close()
+                    return
+                }
+            } else if (requestId.isNone()) {
+                this.messageQueue.add(event.data)
+                stream.close()
+                return
             }
         }
+    }
+
+    private func extractRequestId(req: JsonObject): Option<Int64> {
+        if (let Some(idValue) <- req.get("id")) {
+            return Some(Int64(idValue.asInt().getValue()))
+        }
+        return None
+    }
+
+    private func isResponseForRequest(msg: String, requestId: Option<Int64>): Bool {
+        if (requestId.isNone()) {
+            return true
+        }
+        try {
+            let jo = JsonValue.fromStr(msg).asObject()
+            if (let Some(idValue) <- jo.get("id")) {
+                return Int64(idValue.asInt().getValue()) == requestId.getOrThrow()
+            }
+        } catch (ex: Exception) {
+            LogUtils.debug("Ignore non-JSON SSE payload: ${ex}")
+        }
+        return false
     }
 
     // HTTP-specific session initialization

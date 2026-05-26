@@ -68,7 +68,7 @@
 # TODO: double check each stdx's path
 #----------------------------------------
 [target.x86_64-unknown-linux-gnu.bin-dependencies]
-  path-option = ["./libs/cangjie-stdx-linux-x64-1.1.0.1/dynamic/stdx"]
+  path-option = ["./libs/cangjie-stdx-linux-x64-1.1.0.1/linux_x86_64_cjnative/dynamic/stdx"]
 
 [target.x86_64-unknown-windows-gnu.bin-dependencies]
   path-option = ["./libs/cangjie-stdx-windows-x64-1.1.0.1/windows_x86_64_cjnative/dynamic/stdx"]
