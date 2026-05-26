@@ -109,6 +109,8 @@ sudo xattr -rd com.apple.quarantine /path/to/stdx/dylib
 
 ## Cangjie 鸿蒙版/HarmonyOS Edition
 
+### 对于HarmonyOS 6.0.0及之前的版本
+
 **方式** 1️⃣: 直接配置 git 依赖
 
 **Approach** 1️⃣：Configure Git dependency directly
@@ -141,6 +143,31 @@ git clone https://gitcode.com/Cangjie-TPC/CangjieMagic.git -b harmony_os_edition
 [dependencies]
     magic = { path = "<local-path-to-Cangjie-Magic>" }  # 请注意路径字符串中的"\"是否存在转义,若是请全部转换为"\\"以避免路径解析错误
 ```
+
+### 对于HarmonyOS 6.0.2及之后的版本
+
+**方式** 1️⃣: 下载 Cangjie Magic 并配置本地源码依赖
+
+**Approach** 1️⃣：Download Cangjie Magic and use a local dependency
+
+- 使用 git，执行
+
+  Using Git, run
+
+```bash
+git clone https://gitcode.com/Cangjie-TPC/CangjieMagic.git -b cangjie110
+```
+
+- 设置 `cjpm.toml` 文件
+
+  Set the `cjpm.toml` file
+
+```toml
+[dependencies]
+    magic = { path = "<local-path-to-Cangjie-Magic>" }  # 请注意路径字符串中的"\"是否存在转义,若是请全部转换为"\\"以避免路径解析错误
+```
+
+需要手动下载对应版本stdx 根据 stdx repo 中的教程进行配置，同时在cjpm.toml中进行配置。
 
 ## Other build configuration
 
