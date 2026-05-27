@@ -6,23 +6,20 @@ package magic.log
 import magic.core.message.Message
 import magic.core.message.MessageList
 @When[ohos == "true"]
-import kit.PerformanceAnalysisKit.*
+import ohos.base.AppLog
+
 import std.collection.ArrayList
 
 @When[ohos == "true"]
 struct LogUtilsImpl {
-    private static let LOG_DOMAIN: UInt32 = 0xFF00
-    private static let LOG_TAG = "Magic"
-
     /**
-     * HiLog truncates messages over 4096 bytes, so split long messages.
-     * 1000 runes keeps us under the limit even for 4-byte UTF-8 codepoints.
+     * AppLog.info will truncate a long message, so we split it as multiple messages
      */
     private static func splitMessages(msg: String): Array<String> {
         let result = ArrayList<String>()
         let runes = msg.toRuneArray()
         var start = 0
-        let SIZE = 1000
+        let SIZE = 1500
         while (true) {
             if (start + SIZE <= runes.size) {
                 result.add(String(runes[start..(start + SIZE)]))
@@ -37,7 +34,7 @@ struct LogUtilsImpl {
 
     public static func info(msg: String): Unit {
         for (line in splitMessages(msg)) {
-            Hilog.info(LOG_DOMAIN, LOG_TAG, line)
+            AppLog.info(line)
         }
     }
 
@@ -47,9 +44,7 @@ struct LogUtilsImpl {
     //------------------------------------------------------------
 
     public static func trace(msg: String): Unit {
-        for (line in splitMessages(msg)) {
-            Hilog.debug(LOG_DOMAIN, LOG_TAG, line)
-        }
+        info(msg)  // AppLog.debug has no effects?
     }
 
     public static func agentTrace(name: String, msg: String): Unit {
@@ -58,9 +53,7 @@ struct LogUtilsImpl {
     //------------------------------------------------------------
 
     public static func debug(msg: String): Unit {
-        for (line in splitMessages(msg)) {
-            Hilog.debug(LOG_DOMAIN, LOG_TAG, line)
-        }
+        info(msg)  // AppLog.debug has no effects?
     }
 
     public static func agentDebug(name: String, msg: String): Unit {
@@ -69,9 +62,7 @@ struct LogUtilsImpl {
     //------------------------------------------------------------
 
     public static func error(msg: String): Unit {
-        for (line in splitMessages(msg)) {
-            Hilog.error(LOG_DOMAIN, LOG_TAG, line)
-        }
+        AppLog.info(msg)
     }
 
     public static func agentError(name: String, msg: String): Unit {
